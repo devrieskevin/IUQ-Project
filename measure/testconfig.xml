@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='ASCII'?>
+<hemocell>
+  <parameters>
+    <warmup> 0 </warmup>
+    <outputDirectory>tmp</outputDirectory>
+  </parameters>
+  <ibm>
+    <radius> 3.91e-6 </radius>
+  </ibm>
+  <domain>
+    <shearrate> 50.0 </shearrate>
+    <rhoP> 1025 </rhoP>
+    <nuP> 1.1e-6 </nuP>
+    <dx> 0.5e-6 </dx>
+    <dt> 0.5e-7 </dt>
+    <particleEnvelope>20</particleEnvelope>
+    <kBT>4.100531391e-21</kBT>
+  </domain>
+  <sim>
+    <tmax> 100000 </tmax>
+    <tmeas> 2000 </tmeas>
+    <tcheckpoint>500000</tcheckpoint>
+  </sim>
+</hemocell>

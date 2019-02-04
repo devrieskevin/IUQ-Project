@@ -143,7 +143,7 @@ def core_read_processor(f,r,p,ct3,full,half,t,datapath,ct3name,n):
 			except (OSError, IOError):
 				raise
 
-		print(list(RBC_file.keys()))
+		print(RBC_file)
 		#get data
 		if full:
 			rdt.extend(RBC_file["dt"])

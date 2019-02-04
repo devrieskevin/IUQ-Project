@@ -7,23 +7,61 @@ import EL
 
 from lxml import etree
 
-def buildMaterialXml(filename,params,name="RBC",comment="Parameters for the HO RBC constitutive model."):
-    root = etree.Element("hemocell")
-    material = etree.SubElement(root,"MaterialModel")
-
-    etree.SubElement(material,"comment").text = "Parameters for the HO RBC constitutive model."
-    etree.SubElement(material,"name").text = "RBC"
+def buildMaterialXml(source,kLink,kBend,viscosityRatio,dest=None):
+    tree = etree.parse(source,parser=etree.XMLParser(remove_blank_text=True,remove_comments=True))
+    root = tree.getroot()
 
     # Add material parameters
-    for key in params:
-        etree.SubElement(material,key).text = str(params[key])
+    elements = root.findall('MaterialModel/*')
 
-    # Build xml tree
-    tree = etree.ElementTree(root)
-    tree.write(filename,xml_declaration=True,pretty_print=True)
-    
+    for elem in elements:
+        if elem.tag == 'kLink':
+            elem.text = " " + str(kLink) + " "
+
+        if elem.tag == 'kBend':
+            elem.text = " " + str(kBend) + " "
+
+        if elem.tag == 'viscosityRatio':
+            elem.text = " " + str(viscosityRatio) + " "
+
+    if dest:
+        tree.write(dest,xml_declaration=True,pretty_print=True)
+    else:
+        tree.write(source,xml_declaration=True,pretty_print=True)
+
     return
 
+
+def buildConfig(source,rateval,outDir=None,dest=None):
+    tree = etree.parse(source,parser=etree.XMLParser(remove_blank_text=True,remove_comments=True))
+    root = tree.getroot()
+
+    # Find relevant elements
+    shearrate = root.findall('domain/shearrate')[0]
+    parameters = root.findall('parameters')[0]
+
+    # Change shear rate
+    shearrate.text = " " + str(rateval) + " "
+    
+    # Specify output directory
+    if outDir:
+        output = parameters.findall('outputDirectory')
+        if not output:
+            output = etree.SubElement(parameters,'outputDirectory')
+        else:
+            output = output[0]
+
+        output.text = outDir
+
+    if dest:
+        tree.write(dest,xml_declaration=True,pretty_print=True)
+    else:
+        tree.write(source,xml_declaration=True,pretty_print=True)
+
+    return
+
+buildMaterialXml("/home/kevin/master_project/IUQ-Project/measure/xml_templates/RBC_HO_template.xml",1,1,1,dest="/home/kevin/master_project/HemoCell/examples/oneCellShear/RBC_HO.xml")
+buildConfig("/home/kevin/master_project/IUQ-Project/measure/xml_templates/config_template.xml",50.0,dest="/home/kevin/master_project/HemoCell/examples/oneCellShear/config.xml")
 
 TIME_BEGIN = 98000
 TIME_END = 100000
@@ -49,15 +87,3 @@ for t in range(TIME_BEGIN,TIME_END,timestep):
 
     print(elongation_index)
 
-params = {}
-
-params["eta_m"] = 0.0
-params["kBend"] = 80.0
-params["kVolume"] = 20.0
-params["kArea"] = 5.0
-params["kLink"] = 15.0
-params["minNumTriangles"] = 600
-params["radius"] = 3.91e-6
-params["Volume"] = 90
-
-buildMaterialXml("testfile.xml",params)
