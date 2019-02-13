@@ -1,9 +1,35 @@
 import os
+import sys
+
 import numpy as np
 
 from scipy.stats import multivariate_normal
 
-from .. import scheduler
+import scheduler
+
+
+def normal_likelihood(output, data, data_err, comp_err, model_err):
+    covariance_matrix = np.diag(data_err**2 + 
+                                comp_err**2 + 
+                                (model_err * data)**2)
+    
+    return multivariate_normal.pdf(data.flatten(),mean=output,cov=covariance_matrix)
+
+
+def createBatch(setup,modelpath,tag,var_dicts,param_dict):
+    batch = [scheduler.Run(setup, modelpath, "run_%i" % (n), {**param_dict, **var_dicts[n]}, batch=tag) for n in range(len(var_dicts))]
+
+    return batch
+
+
+def adaptive_p(p_old, likelihoods, COVtol):
+    p = p_old + 0.1
+    
+    if p > 1:
+        return 1
+
+    return p
+
 
 def sample(problem, n_samples, likelihood_function=normal_likelihood, p_scheduler=adaptive_p, cov_scale=0.2, COVtol=1.0, nprocs=1):
     """
@@ -28,6 +54,10 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
 
     # Unpack experimental data and measurement errors
     x = np.array(problem["input data"])
+    
+    if len(x.shape) < 2:
+        x = x[:,None]
+    
     y = np.array(problem["output data"])
     y_err = np.array(problem["data errors"])
 
@@ -41,6 +71,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
     # Dictionary with design variables
     var_dicts = [{design_vars[m]:x[n,m] for m in range(x.shape[1])} for n in range(x.shape[0])]
 
+    
     ### INITIALIZATION ###
 
     # Generate samples from the prior distribution
@@ -51,7 +82,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
     os.makedirs("stage_0")
     os.chdir("stage_0")
 
-    param_dicts = [{model_params[m]:samples[n,m] for m in range(len(model_parameters))} for n in range(n_samples)]
+    param_dicts = [{model_params[m]:samples[n,m] for m in range(len(model_params))} for n in range(n_samples)]
     batches = [createBatch(setup, modelpath, "batch_%i" % (n), var_dicts, param_dicts[n]) for n in range(n_samples)]
 
     # Run model for all parameter sets
@@ -66,14 +97,13 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
     c_err = np.empty((n_samples,y.shape[0]))
     for n,batch in enumerate(batches):
         for m,run in enumerate(batch):
-            qoi[n,m], c_err[n,m] = measure("%s/%s/%s" % (baseDir,run.batch,run.tag))
+            qoi[n,m], c_err[n,m] = measure("%s/%s/%s/%s" % (baseDir,"stage_0",run.batch,run.tag))
 
     # Calculate likelihoods
     m_err_dicts = [{error_params[m]:samples[n,len(model_params) + m] for m in range(len(error_params))} for n in range(n_samples)]
     m_err = np.array([[m_err_dicts[n][model_errors[m]] for m in range(len(model_errors))] for n in range(n_samples)])
 
     likelihoods = np.array([likelihood_function(qoi[n],y,y_err,c_err[n],m_err[n]) for n in range(n_samples)])
-
 
     os.chdir(baseDir)
 
@@ -107,20 +137,6 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
             break
 
     return samples
-
-
-def normal_likelihood(output, data, data_err, comp_err, model_err):
-    covariance_matrix = np.diag(data_err**2 + comp_err**2 + (model_err * data)**2)
-    return multivariate_normal.pdf(data,mean=output,cov=covariance_matrix)
-
-def createBatch(setup,modelpath,tag,var_dicts,param_dict):
-    batch = [scheduler.Run(setup, modelpath, "run_%i" % (n), {**param_dict, **var_dicts[n]}, batch=tag) for n in range(len(var_dicts))]
-
-    return batch
-
-
-def adaptive_p(p_old, likelihoods, COVtol):
-    return p_old + 0.1
 
 
 if __name__ == "__main__":
