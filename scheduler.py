@@ -47,7 +47,7 @@ class ModelScheduler:
             os.chdir(run.tag)
 
         # Set up for the model run
-        args = run.setup(run.modelpath, run.params)
+        args = run.setup(run.path, run.params)
 
         # Run the model
         print("Batch: %s, Run: %s running..." % (run.batch, run.tag))
@@ -142,8 +142,9 @@ class Run:
     """
     Run data structure containing a tag and a dictionary with parameters
     """
-    def __init__(self, setup, tag, params, batch=None):
+    def __init__(self, setup, path, tag, params, batch=None):
         self.setup = setup
+        self.path = path
         self.tag = tag
         self.params = params
         self.batch = batch
@@ -178,7 +179,7 @@ if __name__ == "__main__":
     print("procList", scheduler.procList)
     print("runQueue", scheduler.runQueue)
 
-    bla = Run(hemocell.setup, "bla", params)
+    bla = Run(hemocell.setup, modelpath, "bla", params)
 
     scheduler.enqueue(bla)
     scheduler.flushQueue()
