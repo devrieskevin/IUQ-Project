@@ -18,9 +18,12 @@ class ModelScheduler:
     - Implement data cleanup after output measurement
     """
 
-    def __init__(self, nprocs=1):
+    def __init__(self, nprocs=1, sleep_time=0.2):
         # Number of processes allowed to run concurrently
         self.nprocs = nprocs
+        
+        # Set initial sleep time
+        self.sleep_time = sleep_time
 
         # List processes currently running
         self.procList = []
@@ -98,7 +101,7 @@ class ModelScheduler:
 
         while len(self.runQueue) > 0:
             self.pushQueue()
-            time.sleep(0.2)
+            time.sleep(self.sleep_time)
 
         return
 
@@ -170,12 +173,6 @@ if __name__ == "__main__":
     scheduler.flushQueue()
     scheduler.wait()
 
-    #p = model.run(foo)
-    #p.wait()
-
-    #p = model.run(bar)
-    #p.wait()
-
     print("procList", scheduler.procList)
     print("runQueue", scheduler.runQueue)
 
@@ -188,6 +185,6 @@ if __name__ == "__main__":
 
     scheduler.wait()
 
-    datapath = "./foo/tmp/hdf5/"
+    datapath = "./foo"
 
     print("Elongation Index:", hemocell.measureEI(4000, datapath))

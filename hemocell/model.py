@@ -95,10 +95,12 @@ def buildConfigXml(source, rateval, outDir=None, dest=None):
     return
 
 
-def measureEI(t, datapath):
+def measureEI(t, outputpath):
     """
     Measures the Elongation Index of a RBC by fitting an ellipsoid to the RBC mesh
     """
+
+    datapath = "%s/tmp/hdf5" % (outputpath)
 
     fluid, rbc, platelet, ct3 = HCELL_readhdf5.open_hdf5_files(p=False, f=False, ct3=False, half=True, 
                                                                begin=t, end=t+1, timestep=1, datapath=datapath)
