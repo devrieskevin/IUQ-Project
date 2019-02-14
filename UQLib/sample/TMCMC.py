@@ -178,8 +178,12 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
         
         # Sample leaders and determine maximum Markov chain lengths
         sample_indices = np.random.choice(n_samples,size=n_samples,p=weights_norm)
-        unique_samples, chain_lengths = np.unique(sample_indices,return_counts=True)
-        leaders = samples[unique_samples]
+        unique_indices, chain_lengths = np.unique(sample_indices,return_counts=True)
+
+        # Initialize leader samples and statistics
+        leaders = samples[unique_indices]
+        leader_likelihoods = likelihoods[unique_indices]
+        leader_priors = np.array([full_prior(leaders[n], prior_functions) for n in range(leaders.shape[0])])
         
         os.makedirs("stage_%i" % stage)
         os.chdir("stage_%i" % stage)
@@ -206,14 +210,23 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
                 for m,run in enumerate(chains[n]):
                     qoi[m], c_err[m] = measure("%s/%s/%s/%s" % (baseDir,"stage_%i" % stage,run.batch,run.tag))
 
-                # Calculate likelihood
+                # Modelling errors
                 m_err_dict = {error_params[m]:candidates[n,len(model_params) + m] for m in range(len(error_params))}
                 m_err = np.array([m_err_dict[model_errors[m]] for m in range(len(model_errors))])
 
-                likelihood = likelihood_function(qoi,y,y_err,c_err,m_err)
+                # Calculate candidate statistics
+                candidate_likelihood = likelihood_function(qoi,y,y_err,c_err,m_err)
+                candidate_prior = full_prior(candidates[n],prior_functions)
 
                 # Acceptance-Rejection step
-        
+                ratio = (candidate_likelihood**p * candidate_prior) / (leader_likelihoods[n]**p * leader_priors[n])
+                randnum = np.random.uniform(0,1)
+
+                if randnum <= ratio:
+                    # Accept
+                else:
+                    # Reject
+       
         
         os.chdir(baseDir)
         stage += 1
