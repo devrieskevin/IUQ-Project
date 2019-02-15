@@ -51,6 +51,9 @@ def pollBatch(batch):
 def adaptive_p(p_old, likelihoods, COVtol):
     """
     Implements an adaptive scheduler for the TMCMC control parameter
+
+    TODO:
+        - implement the actual adaptive scheduling...
     """
 
     p = p_old + 0.1
@@ -143,7 +146,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
     c_err = np.empty((n_samples,y.shape[0]))
     for n,batch in enumerate(batches):
         for m,run in enumerate(batch):
-            qoi[n,m], c_err[n,m] = measure("%s/%s/%s/%s" % (baseDir,"stage_0",run.batch,run.tag))
+            qoi[n,m], c_err[n,m] = measure("%s/%s/%s/%s" % (baseDir,"stage_%i" % stage,run.batch,run.tag))
 
     # Calculate likelihoods
     m_err_dicts = [{error_params[m]:samples[n,len(model_params) + m] for m in range(len(error_params))} for n in range(n_samples)]
@@ -155,7 +158,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
     stage += 1
 
     p = 0
-    while True:
+    while p < 1:
         ### ANALYSIS ###
 
         # Calculate next control parameter value
@@ -176,6 +179,8 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
 
         ### RESAMPLE ###
         
+        print("Running stage %i..." % stage)
+        
         # Sample leaders and determine maximum Markov chain lengths
         sample_indices = np.random.choice(n_samples,size=n_samples,p=weights_norm)
         unique_indices, chain_lengths = np.unique(sample_indices,return_counts=True)
@@ -188,7 +193,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
         os.makedirs("stage_%i" % stage)
         os.chdir("stage_%i" % stage)
 
-        counter = np.ones(leaders.shape[0])
+        counter = np.zeros(leaders.shape[0],dtype=int)
 
         # Generate candidates and create batches per chain
         candidates = np.array([np.random.multivariate_normal(leaders[n],covariance_matrix) for n in range(leaders.shape[0])])
@@ -202,36 +207,63 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
         
         runscheduler.flushQueue()
 
-        for n in range(len(chains)):
-            if pollBatch(chains[n]) is not None:
-                # Measure Quantity of interest
-                qoi = np.empty(y.shape[0])
-                c_err = np.empty(y.shape[0])
-                for m,run in enumerate(chains[n]):
-                    qoi[m], c_err[m] = measure("%s/%s/%s/%s" % (baseDir,"stage_%i" % stage,run.batch,run.tag))
+        while np.sum(counter) < n_samples:
+            for n in range(len(chains)):
+                if chains[n] and pollBatch(chains[n]) is not None:
+                    # Measure Quantity of interest
+                    qoi = np.empty(y.shape[0])
+                    c_err = np.empty(y.shape[0])
+                    for m,run in enumerate(chains[n]):
+                        qoi[m], c_err[m] = measure("%s/%s/%s/%s" % (baseDir,"stage_%i" % stage,run.batch,run.tag))
 
-                # Modelling errors
-                m_err_dict = {error_params[m]:candidates[n,len(model_params) + m] for m in range(len(error_params))}
-                m_err = np.array([m_err_dict[model_errors[m]] for m in range(len(model_errors))])
+                    # Modelling errors
+                    m_err_dict = {error_params[m]:candidates[n,len(model_params) + m] for m in range(len(error_params))}
+                    m_err = np.array([m_err_dict[model_errors[m]] for m in range(len(model_errors))])
 
-                # Calculate candidate statistics
-                candidate_likelihood = likelihood_function(qoi,y,y_err,c_err,m_err)
-                candidate_prior = full_prior(candidates[n],prior_functions)
+                    # Evaluate candidate pdfs
+                    candidate_likelihood = likelihood_function(qoi,y,y_err,c_err,m_err)
+                    candidate_prior = full_prior(candidates[n],prior_functions)
 
-                # Acceptance-Rejection step
-                ratio = (candidate_likelihood**p * candidate_prior) / (leader_likelihoods[n]**p * leader_priors[n])
-                randnum = np.random.uniform(0,1)
+                    #print(candidate_likelihood)
+                    #print(candidate_prior)
+                    #print(leader_likelihoods[n])
+                    #print(leader_priors[n])
+                    
+                    # Acceptance-Rejection step
+                    ratio = (candidate_likelihood**p * candidate_prior) / (leader_likelihoods[n]**p * leader_priors[n])
+                    randnum = np.random.uniform(0,1)
+                    if randnum <= ratio:
+                        # Accept candidate as new leader
+                        leaders[n] = candidates[n]
+                        leader_likelihoods[n] = candidate_likelihood
+                        leader_priors[n] = candidate_prior
 
-                if randnum <= ratio:
-                    # Accept
-                else:
-                    # Reject
+                    # Set new leader as a new sample
+                    idx = np.sum(chain_lengths[:n]) + counter[n]
+                    samples[idx] = leaders[n]
+                    likelihoods[idx] = leader_likelihoods[n]
+
+                    # Update chain counter
+                    counter[n] += 1
+
+                    # Check if maximum chain length is reached
+                    if counter[n] < chain_lengths[n]:
+                        # Generate new candidate
+                        candidates[n] = np.random.multivariate_normal(leaders[n],covariance_matrix)
+
+                        # Set new candidate in the chain add to the run queue
+                        param_dict = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
+                        chains[n] = createBatch(setup,modelpath,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
+                        runscheduler.enqueueBatch(chains[n])
+                    else:
+                        chains[n] = None
+
+            if len(runscheduler.runQueue):
+                runscheduler.flushQueue()
+            else:
+                runscheduler.wait()
        
-        
         os.chdir(baseDir)
         stage += 1
-        
-        if p >= 1:
-            break
 
-    return samples
+    return samples,likelihoods
