@@ -275,7 +275,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
                     else:
                         chains[n] = None
 
-            if len(runscheduler.runQueue):
+            if len(runscheduler.queue):
                 runscheduler.flushQueue()
             else:
                 runscheduler.wait()

@@ -26,10 +26,10 @@ class ModelScheduler:
         self.sleep_time = sleep_time
 
         # List processes currently running
-        self.procList = []
+        self.running = []
 
         # Run FIFO queue
-        self.runQueue = []
+        self.queue = []
 
         return
 
@@ -53,7 +53,7 @@ class ModelScheduler:
         args = run.setup(run.path, run.params)
 
         # Run the model
-        print("Batch: %s, Run: %s running..." % (run.batch, run.tag))
+        # print("Batch: %s, Run: %s running..." % (run.batch, run.tag))
         with open("stdout.log","wb") as outfile:
             p = subprocess.Popen(args, stdout=outfile)
 
@@ -66,7 +66,7 @@ class ModelScheduler:
         Refreshes the process buffer by removing terminated processes
         """
 
-        self.procList = [p for p in self.procList if p.poll() is None]
+        self.running = [p for p in self.running if p.poll() is None]
         return
 
     def pushNext(self):
@@ -74,11 +74,11 @@ class ModelScheduler:
         Runs the next process in the queue
         """
 
-        if len(self.runQueue) > 0:
-            run = self.runQueue.pop(0)
+        if len(self.queue) > 0:
+            run = self.queue.pop(0)
             p = self.run(run)
             run.process = p
-            self.procList.append(p)
+            self.running.append(p)
 
         return
 
@@ -88,7 +88,7 @@ class ModelScheduler:
         """
 
         self.refreshBuffer()
-        while len(self.procList) < self.nprocs and len(self.runQueue) > 0:
+        while len(self.running) < self.nprocs and len(self.queue) > 0:
             self.pushNext()
 
         return
@@ -99,7 +99,7 @@ class ModelScheduler:
         Implemented as a busy wait loop
         """
 
-        while len(self.runQueue) > 0:
+        while len(self.queue) > 0:
             self.pushQueue()
             time.sleep(self.sleep_time)
 
@@ -111,7 +111,7 @@ class ModelScheduler:
         """
 
         # Flush the process buffer
-        for p in self.procList:
+        for p in self.running:
             p.wait()
         
         self.refreshBuffer()
@@ -123,7 +123,7 @@ class ModelScheduler:
         Adds a parameter set to the run queue
         """
 
-        self.runQueue.append(run)
+        self.queue.append(run)
         self.pushQueue()
 
         return
@@ -134,7 +134,7 @@ class ModelScheduler:
         """
 
         for run in batch:
-            self.runQueue.append(run)
+            self.queue.append(run)
 
         self.pushQueue()
 
@@ -173,15 +173,15 @@ if __name__ == "__main__":
     scheduler.flushQueue()
     scheduler.wait()
 
-    print("procList", scheduler.procList)
-    print("runQueue", scheduler.runQueue)
+    print("running", scheduler.running)
+    print("queue", scheduler.queue)
 
     bla = Run(hemocell.setup, modelpath, "bla", params)
 
     scheduler.enqueue(bla)
     scheduler.flushQueue()
 
-    print("procList", scheduler.procList)
+    print("running", scheduler.running)
 
     scheduler.wait()
 
