@@ -4,9 +4,9 @@ import sys
 import numpy as np
 
 from scipy.stats import multivariate_normal
+from scipy.optimize import minimize
 
 import scheduler
-
 
 def normal_likelihood(output, data, data_err, comp_err, model_err):
     """
@@ -48,18 +48,32 @@ def pollBatch(batch):
     else:
         return np.sum(codes)
 
+    
+def COV_biased(x):
+    mu = np.mean(x)
+    std = np.sqrt(np.sum((x-mu)**2) / (x.shape[0] - 1))
+
+    return std / mu
+    
+    
 def adaptive_p(p_old, likelihoods, COVtol):
     """
     Implements an adaptive scheduler for the TMCMC control parameter
-
-    TODO:
-        - implement the actual adaptive scheduling...
     """
 
-    p = p_old + 0.1
+    objective = lambda p: np.abs(COVtol - COV_biased(likelihoods**(p - p_old)))
+
+    p0 = np.array([p_old])
+
+    res = minimize(objective,p0,method="SLSQP",bounds=((p_old,None),))
+
+    p = res.x[0]
     
     if p > 1:
-        return 1
+        p = 1
+
+    print("p:", p)
+    print("COV:", COV_biased(likelihoods**(p - p_old)))
 
     return p
 
@@ -71,6 +85,7 @@ def full_prior(params, priors):
     """
 
     evaluations = np.array([priors[n](params[n]) for n in range(len(priors))])
+        
     return np.prod(evaluations)
 
 
@@ -163,6 +178,8 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
 
         # Calculate next control parameter value
         p_old = p
+
+        print("Calculate next p")
         p = p_scheduler(p,likelihoods,COVtol)
         
         # Calculate plausability weights
@@ -176,7 +193,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
         centered_outer = samples_centered[:,:,None] @ samples_centered[:,None,:]
 
         covariance_matrix = cov_scale**2 * np.sum(weights_norm[:,None,None] * centered_outer,axis=0)
-
+        
         ### RESAMPLE ###
         
         print("Running stage %i..." % stage)
@@ -232,7 +249,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
                     # Acceptance-Rejection step
                     ratio = (candidate_likelihood**p * candidate_prior) / (leader_likelihoods[n]**p * leader_priors[n])
                     randnum = np.random.uniform(0,1)
-                    if randnum <= ratio:
+                    if randnum < ratio:
                         # Accept candidate as new leader
                         leaders[n] = candidates[n]
                         leader_likelihoods[n] = candidate_likelihood
@@ -263,6 +280,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
             else:
                 runscheduler.wait()
        
+        print("Current max likelihood:",np.max(likelihoods))
         os.chdir(baseDir)
         stage += 1
 
