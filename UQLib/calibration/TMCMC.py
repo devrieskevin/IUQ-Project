@@ -6,6 +6,8 @@ import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
 
+import pandas as pd
+
 import scheduler
 
 def normal_likelihood(output, data, data_err, comp_err, model_err):
@@ -52,7 +54,7 @@ def pollBatch(batch):
 def COV_biased(x):
     mu = np.mean(x)
     std = np.sqrt(np.sum((x-mu)**2) / (x.shape[0] - 1))
-
+    
     return std / mu
     
     
@@ -61,16 +63,22 @@ def adaptive_p(p_old, likelihoods, COVtol):
     Implements an adaptive scheduler for the TMCMC control parameter
     """
 
-    objective = lambda p: np.abs(COVtol - COV_biased(likelihoods**(p - p_old)))
+    # f = np.log(likelihoods)
+    # fmax = np.max(f)
+    # weight = lambda p: np.exp((f-fmax)*(p - p_old))
+    
+    weight = lambda p: likelihoods**(p-p_old)
+    norm_weight = lambda p: weight(p) / np.sum(weight(p))
+    objective = lambda p: np.abs(COV_biased(norm_weight(p)) - COVtol)
 
-    p0 = np.array([p_old])
+    p0 = np.array([p_old + 1e-6])
 
-    res = minimize(objective,p0,method="SLSQP",bounds=((p_old,None),))
+    res = minimize(objective,p0,method="SLSQP",bounds=((p_old,1.0),))
 
     p = res.x[0]
     
     if p > 1:
-        p = 1
+        p = 1.0
 
     print("p:", p)
     print("COV:", COV_biased(likelihoods**(p - p_old)))
@@ -284,4 +292,8 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
         os.chdir(baseDir)
         stage += 1
 
-    return samples,likelihoods
+    df = pd.DataFrame(data=samples,columns=model_params+error_params)
+    df["likelihood"] = likelihoods
+
+    
+    return df
