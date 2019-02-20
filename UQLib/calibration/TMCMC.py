@@ -71,9 +71,9 @@ def adaptive_p(p_old, likelihoods, COVtol):
     norm_weight = lambda p: weight(p) / np.sum(weight(p))
     objective = lambda p: np.abs(COV_biased(norm_weight(p)) - COVtol)
 
-    p0 = np.array([p_old + 1e-6])
+    p0 = np.array([p_old+1e-6])
 
-    res = minimize(objective,p0,method="SLSQP",bounds=((p_old,1.0),))
+    res = minimize(objective,p0,method="SLSQP",bounds=((p_old,1.1),))
 
     p = res.x[0]
     
