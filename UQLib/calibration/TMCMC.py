@@ -63,10 +63,10 @@ def adaptive_p(p_old, likelihoods, COVtol):
     Implements an adaptive scheduler for the TMCMC control parameter
     """
 
-    # f = np.log(likelihoods)
-    # fmax = np.max(f)
-    # weight = lambda p: np.exp((f-fmax)*(p - p_old))
-    
+    #f = np.log(likelihoods)
+    #fmax = np.max(f)
+    #weight = lambda p: np.exp((f-fmax)*(p - p_old))
+        
     weight = lambda p: likelihoods**(p-p_old)
     norm_weight = lambda p: weight(p) / np.sum(weight(p))
     objective = lambda p: np.abs(COV_biased(norm_weight(p)) - COVtol)
@@ -212,6 +212,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
 
         # Initialize leader samples and statistics
         leaders = samples[unique_indices]
+        leader_qoi = qoi[unique_indices]
         leader_likelihoods = likelihoods[unique_indices]
         leader_priors = np.array([full_prior(leaders[n], prior_functions) for n in range(leaders.shape[0])])
         
@@ -236,17 +237,17 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
             for n in range(len(chains)):
                 if chains[n] and pollBatch(chains[n]) is not None:
                     # Measure Quantity of interest
-                    qoi = np.empty(y.shape[0])
+                    candidate_qoi = np.empty(y.shape[0])
                     c_err = np.empty(y.shape[0])
                     for m,run in enumerate(chains[n]):
-                        qoi[m], c_err[m] = measure("%s/%s/%s/%s" % (baseDir,"stage_%i" % stage,run.batch,run.tag))
+                        candidate_qoi[m], c_err[m] = measure("%s/%s/%s/%s" % (baseDir,"stage_%i" % stage,run.batch,run.tag))
 
                     # Modelling errors
                     m_err_dict = {error_params[m]:candidates[n,len(model_params) + m] for m in range(len(error_params))}
                     m_err = np.array([m_err_dict[model_errors[m]] for m in range(len(model_errors))])
 
                     # Evaluate candidate pdfs
-                    candidate_likelihood = likelihood_function(qoi,y,y_err,c_err,m_err)
+                    candidate_likelihood = likelihood_function(candidate_qoi,y,y_err,c_err,m_err)
                     candidate_prior = full_prior(candidates[n],prior_functions)
 
                     #print(candidate_likelihood)
@@ -260,12 +261,14 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
                     if randnum < ratio:
                         # Accept candidate as new leader
                         leaders[n] = candidates[n]
+                        leader_qoi[n] = candidate_qoi
                         leader_likelihoods[n] = candidate_likelihood
                         leader_priors[n] = candidate_prior
 
                     # Set new leader as a new sample
                     idx = np.sum(chain_lengths[:n]) + counter[n]
                     samples[idx] = leaders[n]
+                    qoi[idx] = leader_qoi[n]
                     likelihoods[idx] = leader_likelihoods[n]
 
                     # Update chain counter
@@ -278,7 +281,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
 
                         # Set new candidate in the chain add to the run queue
                         param_dict = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
-                        chains[n] = createBatch(setup,modelpath,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
+                        chains[n] = createBatch(setup,modelpath,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dict)
                         runscheduler.enqueueBatch(chains[n])
                     else:
                         chains[n] = None
@@ -296,4 +299,4 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
     df["likelihood"] = likelihoods
 
     
-    return df
+    return df,qoi
