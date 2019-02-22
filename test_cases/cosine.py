@@ -3,9 +3,22 @@ import numpy as np
 
 def evaluate(x,a,c,k,f):
     """
-    Evaluates the sinusoidal model
+    Evaluates the cosine model
     """
-    return a * np.cos(k * x - f) + c
+    return a * np.cos(k * x - f) + c, 0.0
+
+def evaluate_dict(params):
+    """
+    Evaluates the cosine model using a dictionary
+    """
+    
+    x = params["x"]
+    a = params["a"]
+    c = params["c"]
+    k = params["k"]
+    f = params["f"]
+    
+    return a * np.cos(k * x - f) + c, 0.0
 
 def setup(modelpath, params):
     """
@@ -22,9 +35,9 @@ def read_output(path):
 
 def generate(n_samples,scale=1.0):
     params = a, c, k, f = np.random.uniform(-5, 5, size=4)
-    
     x = np.linspace(0, 2 * np.pi, n_samples)
-    y = evaluate(x, a, c, k, f)
+    
+    y,_ = evaluate(x,a,c,k,f)
     eps = np.random.normal(0.0, scale, size=n_samples)
     
     data = y + eps
@@ -35,6 +48,5 @@ def generate(n_samples,scale=1.0):
     
 if __name__ == "__main__":
     x,a,c,k,f = [float(sys.argv[n]) for n in range(1,6)]
-    
-    result = evaluate(x,a,c,k,f)
+    result,_ = evaluate(x,a,c,k,f)
     print(result)

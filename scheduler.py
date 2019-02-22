@@ -50,7 +50,7 @@ class ModelScheduler:
             os.chdir(run.tag)
 
         # Set up for the model run
-        args = run.setup(run.path, run.params)
+        args = run.setup(run.params)
 
         # Run the model
         # print("Batch: %s, Run: %s running..." % (run.batch, run.tag))
@@ -145,9 +145,8 @@ class Run:
     """
     Run data structure containing a tag and a dictionary with parameters
     """
-    def __init__(self, setup, path, tag, params, batch=None):
+    def __init__(self, setup, tag, params, batch=None):
         self.setup = setup
-        self.path = path
         self.tag = tag
         self.params = params
         self.batch = batch
@@ -159,15 +158,17 @@ class Run:
 if __name__ == "__main__":
     import hemocell.model as hemocell
 
+    setup = lambda params: hemocell.setup(modelpath,params)
+
     scheduler = ModelScheduler(nprocs=2)
 
     params = {"shearrate":25, "kLink":1, "kBend":1, "viscosityRatio":1}
 
-    foo = Run(hemocell.setup, modelpath, "foo", params)
+    foo = Run(setup, "foo", params)
 
     params = {"shearrate":50, "kLink":2, "kBend":2, "viscosityRatio":2}
 
-    bar = Run(hemocell.setup, modelpath, "bar", params)
+    bar = Run(setup, "bar", params)
     
     scheduler.enqueueBatch([foo,bar])
     scheduler.flushQueue()
@@ -176,7 +177,7 @@ if __name__ == "__main__":
     print("running", scheduler.running)
     print("queue", scheduler.queue)
 
-    bla = Run(hemocell.setup, modelpath, "bla", params)
+    bla = Run(setup, "bla", params)
 
     scheduler.enqueue(bla)
     scheduler.flushQueue()
