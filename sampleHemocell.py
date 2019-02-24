@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
     data = data.loc[data["Treatment"] == 0.5]
-    stress,el,el_err = data.values[:,[1,3,4]].T
+    stress,el,el_err = data.values[:12,[1,3,4]].T
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # Construct problem dict
     problem = {"model_type":"external",
                "setup":(lambda params: hemocell.setup(modelpath,params)),
-               "measure":(lambda outpath: hemocell.measureEI(70000,outpath)),
+               "measure":(lambda outpath: hemocell.measureEI(4000,outpath)),
                "model_params":model_params,
                "error_params":error_params,
                "design_vars":design_vars,
@@ -81,12 +81,12 @@ if __name__ == "__main__":
     # Sample from the posterior distribution
     os.makedirs("TMCMC_output")
     os.chdir("TMCMC_output")
-    df,qoi = TMCMC.sample(problem,2,nprocs=4)
+    df,qoi = TMCMC.sample(problem,100,nprocs=16)
     os.chdir("..")
 
     # Remove garbage
     shutil.rmtree("./TMCMC_output")
     
     # Write output to files
-    df.to_csv("hemocell_samples.csv",sep=";")
+    df.to_csv("hemocell_samples.csv",sep=";",index=False)
     np.save("hemocell_qoi.npy",qoi)

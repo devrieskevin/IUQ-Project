@@ -86,7 +86,7 @@ def measureEI(t, outputpath):
     Measures the Elongation Index of a RBC by fitting an ellipsoid to the RBC mesh
     """
 
-    datapath = "%s/tmp/hdf5" % (outputpath)
+    datapath = "%s/tmp/hdf5/" % (outputpath)
 
     fluid, rbc, platelet, ct3 = HCELL_readhdf5.open_hdf5_files(p=False, f=False, ct3=False, half=True, 
                                                                begin=t, end=t+1, timestep=1, datapath=datapath)
@@ -99,4 +99,4 @@ def measureEI(t, outputpath):
     
     A, B, elongation_index = EL.elongation_index(X, Y)
 
-    return elongation_index
+    return elongation_index, 0.0
