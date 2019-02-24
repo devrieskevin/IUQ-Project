@@ -20,21 +20,25 @@ np.random.seed(696969)
 
 
 def model_prior(sample):
-    pass
+    kLink_prior = uniform.pdf(sample[0],1.0,99.0)
+    kBend_prior = uniform.pdf(sample[1],50.0,50.0)
+    return np.prod([kLink_prior,kBend_prior])
 
 def model_sampler(n_samples):
-    pass
+    kLink_samples = np.random.uniform(1.0,100.0,n_samples)
+    kBend_samples = np.random.uniform(50.0,100.0,n_samples)
+    return np.column_stack([kLink_samples,kBend_samples])
 
 def error_prior(sample):
-    pass
+    return uniform.pdf(sample[0],0.001,0.999)
 
 def error_sampler(n_samples):
-    pass
+    return np.random.uniform(0.001,1.0,(n_samples,1))
 
 if __name__ == "__main__":
     
     # Define problem parameters
-    model_params = ["kLink","kBend","viscosityRatio"]
+    model_params = ["kLink","kBend"]
     error_params = ["model_uncertainty"]
     design_vars = ["shearrate"]
     
@@ -75,19 +79,14 @@ if __name__ == "__main__":
               }
     
     # Sample from the posterior distribution
-    #os.makedirs("TMCMC_output")
-    #os.chdir("TMCMC_output")
-    df,qoi = TMCMC.sample(problem,2,nprocs=16)
-    #os.chdir("..")
+    os.makedirs("TMCMC_output")
+    os.chdir("TMCMC_output")
+    df,qoi = TMCMC.sample(problem,2,nprocs=4)
+    os.chdir("..")
 
     # Remove garbage
-    #shutil.rmtree("./TMCMC_output")
+    shutil.rmtree("./TMCMC_output")
     
-    # Write output to 
-    
-    
-    
-    
-    
-    
-    
+    # Write output to files
+    df.to_csv("hemocell_samples.csv",sep=";")
+    np.save("hemocell_qoi.npy",qoi)
