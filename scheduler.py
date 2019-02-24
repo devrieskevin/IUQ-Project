@@ -188,4 +188,4 @@ if __name__ == "__main__":
 
     datapath = "./foo"
 
-    print("Elongation Index:", hemocell.measureEI(4000, datapath))
+    print("Elongation Index:", hemocell.measureEI(70000, datapath))

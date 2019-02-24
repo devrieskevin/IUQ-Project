@@ -16,23 +16,17 @@ def setup(modelpath, params):
     Returns the list of command line arguments
     """
 
-    # Unpack parameters
-    shrate = params["shearrate"]
-    kLink = params["kLink"]
-    kBend = params["kBend"]
-    viscRatio = params["viscosityRatio"]
-
     templatepath = "%s/templates" % (os.path.dirname(__file__))
 
     # Build and copy the necessary files
-    buildMaterialXml("%s/RBC_HO_template.xml" % (templatepath), kLink, kBend, viscRatio, dest="RBC_HO.xml")
-    buildConfigXml("%s/config_template.xml" % (templatepath), shrate, dest="config.xml")
+    buildMaterialXml("%s/RBC_HO_template.xml" % (templatepath), params, dest="RBC_HO.xml")
+    buildConfigXml("%s/config_template.xml" % (templatepath), params, dest="config.xml")
     shutil.copyfile("%s/RBC_HO.pos" % (templatepath), "./RBC_HO.pos")
 
     return [modelpath, "config.xml"]
 
 
-def buildMaterialXml(source, kLink, kBend, viscosityRatio, dest=None):
+def buildMaterialXml(source, params, dest=None):
     """
     Builds an XML file for the RBC material model by reading in a RBC XML template and setting
     the relevant parameters: kLink, kBend and the viscosity ratio
@@ -41,18 +35,10 @@ def buildMaterialXml(source, kLink, kBend, viscosityRatio, dest=None):
     tree = etree.parse(source, parser=etree.XMLParser(remove_blank_text=True, remove_comments=True))
     root = tree.getroot()
 
-    # Add material parameters
-    elements = root.findall('MaterialModel/*')
-
-    for elem in elements:
-        if elem.tag == 'kLink':
-            elem.text = " " + str(kLink) + " "
-
-        if elem.tag == 'kBend':
-            elem.text = " " + str(kBend) + " "
-
-        if elem.tag == 'viscosityRatio':
-            elem.text = " " + str(viscosityRatio) + " "
+    for name in params.keys():
+        elem = root.find('MaterialModel/%s' % name)
+        if elem is not None:
+            elem.text = " " + str(params[name]) + " "
 
     if dest:
         tree.write(dest, xml_declaration=True, pretty_print=True)
@@ -62,7 +48,7 @@ def buildMaterialXml(source, kLink, kBend, viscosityRatio, dest=None):
     return
 
 
-def buildConfigXml(source, rateval, outDir=None, dest=None):
+def buildConfigXml(source, params, outDir=None, dest=None):
     """
     Builds a config XML file by reading in a config template and setting the shear rate 
     """
@@ -71,19 +57,19 @@ def buildConfigXml(source, rateval, outDir=None, dest=None):
     root = tree.getroot()
 
     # Find relevant elements
-    shearrate = root.findall('domain/shearrate')[0]
-    parameters = root.findall('parameters')[0]
+    shearrate = root.find('domain/shearrate')
+    parameters = root.find('parameters')
 
     # Change shear rate
-    shearrate.text = " " + str(rateval) + " "
+    shearrate.text = " " + str(params["shearrate"]) + " "
     
     # Specify output directory
     if outDir:
-        output = parameters.findall('outputDirectory')
+        output = parameters.find('outputDirectory')
         if not output:
             output = etree.SubElement(parameters, 'outputDirectory')
         else:
-            output = output[0]
+            output = output
 
         output.text = outDir
 
