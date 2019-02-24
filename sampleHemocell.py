@@ -18,7 +18,6 @@ from local_config import *
 
 np.random.seed(696969)
 
-
 def model_prior(sample):
     kLink_prior = uniform.pdf(sample[0],1.0,99.0)
     kBend_prior = uniform.pdf(sample[1],50.0,50.0)
@@ -45,7 +44,7 @@ if __name__ == "__main__":
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
     data = data.loc[data["Treatment"] == 0.5]
-    stress,el,el_err = data.values[:12,[1,3,4]].T
+    stress,el,el_err = data.values[:,[1,3,4]].T
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
