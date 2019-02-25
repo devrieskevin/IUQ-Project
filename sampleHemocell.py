@@ -9,12 +9,10 @@ import pandas as pd
 import UQLib.calibration.TMCMC as TMCMC
 import hemocell.model as hemocell
 
-import matplotlib.pyplot as plt
-
 from lxml import etree
 
-from local_config import *
-#from lisa_config import *
+#from local_config import *
+from lisa_config import *
 
 np.random.seed(696969)
 
@@ -44,7 +42,7 @@ if __name__ == "__main__":
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
     data = data.loc[data["Treatment"] == 0.5]
-    stress,el,el_err = data.values[:,[1,3,4]].T
+    stress,el,el_err = data.values[:12,[1,3,4]].T
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
