@@ -54,8 +54,8 @@ class ModelScheduler:
 
         # Run the model
         # print("Batch: %s, Run: %s running..." % (run.batch, run.tag))
-        with open("stdout.log","wb") as outfile:
-            p = subprocess.Popen(args, stdout=outfile)
+        with open("stdout.log","wb") as outfile, open("stderr.log","wb") as errfile:
+            p = subprocess.Popen(args, stdout=outfile, stderr=errfile)
 
         os.chdir(baseDir)
 

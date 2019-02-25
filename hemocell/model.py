@@ -88,14 +88,22 @@ def measureEI(t, outputpath):
 
     datapath = "%s/tmp/hdf5/" % (outputpath)
 
-    fluid, rbc, platelet, ct3 = HCELL_readhdf5.open_hdf5_files(p=False, f=False, ct3=False, half=True, 
-                                                               begin=t, end=t+1, timestep=1, datapath=datapath)
+    try:
+        fluid, rbc, platelet, ct3 = HCELL_readhdf5.open_hdf5_files(p=False, f=False, ct3=False, half=True, 
+                                                                   begin=t, end=t+1, timestep=1, datapath=datapath)
+    except (OSError, IOError):
+        return -100, 0.0
+
 
     # Measure elongation index
     pos = np.array(rbc[0].position)
-    X = pos[:, 0]
-    Y = pos[:, 1]
-    Z = pos[:, 2]
+
+    if pos.shape[0] > 0:
+        X = pos[:, 0]
+        Y = pos[:, 1]
+        Z = pos[:, 2]
+    else:
+        return -100, 0.0
     
     A, B, elongation_index = EL.elongation_index(X, Y)
 

@@ -14,15 +14,15 @@ from lxml import etree
 #from local_config import *
 from lisa_config import *
 
-np.random.seed(696969)
+np.random.seed(6969)
 
 def model_prior(sample):
-    kLink_prior = uniform.pdf(sample[0],1.0,99.0)
+    kLink_prior = uniform.pdf(sample[0],10.0,90.0)
     kBend_prior = uniform.pdf(sample[1],50.0,50.0)
     return np.prod([kLink_prior,kBend_prior])
 
 def model_sampler(n_samples):
-    kLink_samples = np.random.uniform(1.0,100.0,n_samples)
+    kLink_samples = np.random.uniform(10.0,100.0,n_samples)
     kBend_samples = np.random.uniform(50.0,100.0,n_samples)
     return np.column_stack([kLink_samples,kBend_samples])
 
