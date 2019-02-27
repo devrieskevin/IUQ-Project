@@ -14,16 +14,16 @@ from lxml import etree
 #from local_config import *
 from lisa_config import *
 
-np.random.seed(6969)
+np.random.seed(666)
 
 def model_prior(sample):
-    kLink_prior = uniform.pdf(sample[0],10.0,90.0)
-    kBend_prior = uniform.pdf(sample[1],50.0,50.0)
+    kLink_prior = uniform.pdf(sample[0],10.0,140.0)
+    kBend_prior = uniform.pdf(sample[1],50.0,100.0)
     return np.prod([kLink_prior,kBend_prior])
 
 def model_sampler(n_samples):
-    kLink_samples = np.random.uniform(10.0,100.0,n_samples)
-    kBend_samples = np.random.uniform(50.0,100.0,n_samples)
+    kLink_samples = np.random.uniform(10.0,150.0,n_samples)
+    kBend_samples = np.random.uniform(50.0,150.0,n_samples)
     return np.column_stack([kLink_samples,kBend_samples])
 
 def error_prior(sample):
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
-    data = data.loc[data["Treatment"] == 0.5]
+    data = data.loc[data["Treatment"] == 1.0]
     stress,el,el_err = data.values[:12,[1,3,4]].T
 
     # Get data from config files

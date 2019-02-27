@@ -74,9 +74,9 @@ def core_read_processor(f,r,p,ct3,full,half,t,datapath,ct3name,n):
 
 	time_path = datapath+str(t).zfill(12)
 	#time_path = datapath+str(t)
-	if n == 0:
-		print("reading in files ...")
-		print(time_path)
+	#if n == 0:
+	#	print("reading in files ...")
+	#	print(time_path)
 	#Read in each processer filename
 	#Read all fluid files
 	if f:
@@ -143,7 +143,7 @@ def core_read_processor(f,r,p,ct3,full,half,t,datapath,ct3name,n):
 			except (OSError, IOError):
 				raise
 
-		print(RBC_file)
+		#print(RBC_file)
 		#get data
 		if full:
 			rdt.extend(RBC_file["dt"])
