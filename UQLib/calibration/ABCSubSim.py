@@ -38,7 +38,17 @@ def pollBatch(batch):
     else:
         return np.sum(codes)
 
-def sample(problem, n_samples, invP0=5, max_levels=10, nprocs=1, sleep_time=0.2):
+def generate_candidate(sample,priors,variances):   
+    candidate = np.random.multivariate_normal(sample,np.diag(variances))
+    for n in range(sample.shape[0]):
+        ratio = priors[n](candidate[n]) / priors[n](sample[n])
+        randnum = np.random.uniform(0.0,1.0)
+        if randnum > ratio:
+            candidate[n] = sample[n]
+
+    return candidate
+
+def sample(problem, n_samples, invP0=5, tol=0.1, max_stages=20, nprocs=1, sleep_time=0.2):
     """
     Approximate Bayesian Computation Sampler
     """
@@ -81,17 +91,24 @@ def sample(problem, n_samples, invP0=5, max_levels=10, nprocs=1, sleep_time=0.2)
     y_err = np.array(problem["data_errors"])
 
     # Unpack prior functions and samplers
-    model_prior = problem["model_prior"]
-    model_sampler = problem["model_sampler"]
+    priors = problem["priors"]
+    samplers = problem["samplers"]
 
     # Dictionary with design variables
     var_dicts = [{design_vars[m]:x[n,m] for m in range(x.shape[1])} for n in range(x.shape[0])]
 
+    # Full prior function
+    #full_prior = lambda sample: np.prod([priors[n](sample[n]) for n in range(len(priors))])
+
     ### INITIALIZATION ###
 
     # Generate samples from the prior distribution
-    samples = model_sampler(n_samples)
-
+    samples = np.array([samplers[n](n_samples) for n in range(len(samplers))]).T
+    
+    for n in range(samples.shape[0]):
+        if np.any(samples[n] > 5) or np.any(samples[n] < -5):
+            print(samples[n])
+    
     print("Initializing...")
 
     param_dicts = [{model_params[m]:samples[n,m] for m in range(len(model_params))} for n in range(n_samples)]
@@ -128,7 +145,7 @@ def sample(problem, n_samples, invP0=5, max_levels=10, nprocs=1, sleep_time=0.2)
     distances = np.array([distance(qoi[n],y) for n in range(n_samples)])
     
     for stage in range(1,max_stages+1):
-        print("Running level %i..." % stage)
+        print("Running stage %i..." % stage)
 
         # Sort samples
         sort_indices = np.argsort(distances)
@@ -136,32 +153,65 @@ def sample(problem, n_samples, invP0=5, max_levels=10, nprocs=1, sleep_time=0.2)
         samples = samples[sort_indices]
         qoi = qoi[sort_indices]
 
-        # Set tolerance value
-        eps = 0.5 * (distances[n_samples // invP0] + distances[n_samples // invP0 + 1])
+        # Compute current tolerance value
+        eps = (distances[n_samples // invP0] + distances[n_samples // invP0 + 1]) / 2
+        print("Current tolerance value:", eps)
 
-        # Generate candidates and create batches per chain
-        candidates = np.array([np.random.multivariate_normal(leaders[n],covariance_matrix) 
-                               for n in range(leaders.shape[0])])
+        # Compute the variances for the proposal distributions of the candidate components
+        variances = 0.01 * np.ones(samples.shape[1])
 
-        param_dicts = [{model_params[m]:candidates[n,m] for m in range(len(model_params))} 
-                       for n in range(candidates.shape[0])]
-        
+        # Set samples with the smallest distances as leaders
+        leaders = samples[:n_samples // invP0,:]
+        leader_qoi = qoi[:n_samples // invP0,:]
+        leader_distances = distances[:n_samples // invP0]
+
+        # Set first samples of next stage to leaders
+        samples[::invP0] = leaders
+        qoi[::invP0] = leader_qoi
+        distances[::invP0] = leader_distances
+
+        counter = np.ones(leaders.shape[0],dtype=int)
+
         if model_type == "external":
             os.makedirs("stage_%i" % stage)
             os.chdir("stage_%i" % stage)
-            
-            chains = [createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n]) 
-                      for n in range(leaders.shape[0])]
 
-            # Schedule chain runs
-            for chain in chains:
-                runscheduler.enqueueBatch(chain)        
+        # Generate candidates and create batches per chain
+        candidates = np.empty(leaders.shape)
+        param_dicts = [{} for n in range(candidates.shape[0])]
+        chains = [[] for n in range(leaders.shape[0])]
+        for n in range(leaders.shape[0]):
+            # Preemptively accept or reject candidates before evaluating
+            while counter[n] < invP0:
+                # Generate new candidate
+                candidates[n] = generate_candidate(leaders[n],priors,variances)
 
+                if np.any(candidates[n] != leaders[n]):
+
+                    # Set new candidate in the chain and add to the run queue
+                    param_dicts[n] = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
+                 
+                    if model_type == "external":
+                        chains[n] = createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
+                        runscheduler.enqueueBatch(chains[n])
+                    break
+
+                else:
+                    # Set new leader as a new sample
+                    idx = n * invP0 + counter[n]
+                    samples[idx] = leaders[n]
+                    qoi[idx] = leader_qoi[n]
+                    distances[idx] = leader_distances[n]
+
+                    # Update chain counter
+                    counter[n] += 1
+        
+        if model_type == "external":
             runscheduler.flushQueue()
 
         while np.sum(counter) < n_samples:
             for n in range(leaders.shape[0]):
-                if counter[n] < chain_lengths[n]:
+                if counter[n] < invP0:
                     
                     if model_type == "external" and pollBatch(chains[n]) is None:
                         continue
@@ -180,61 +230,65 @@ def sample(problem, n_samples, invP0=5, max_levels=10, nprocs=1, sleep_time=0.2)
                         for m in range(y.shape[0]):
                             params.update(var_dicts[m])
                             candidate_qoi[m], c_err[m] = evaluate(params)
-                        
-                    # Modelling errors
-                    m_err_dict = {error_params[m]:candidates[n,len(model_params) + m] for m in range(len(error_params))}
-                    m_err = np.array([m_err_dict[model_errors[m]] for m in range(len(model_errors))])
+                                            
+                    # Compute candidate distance
+                    candidate_distance = distance(candidate_qoi,y)
 
-                    # Evaluate candidate pdfs
-                    candidate_likelihood = likelihood_function(candidate_qoi,y,y_err,c_err,m_err)
-                    candidate_prior = full_prior(candidates[n])
-                    
-                    # Acceptance-Rejection step
-                    ratio = (candidate_likelihood**p * candidate_prior) / (leader_likelihoods[n]**p * leader_priors[n])
-                    randnum = np.random.uniform(0,1)
-                    if randnum < ratio:
+                    if candidate_distance < eps:
                         # Accept candidate as new leader
                         leaders[n] = candidates[n]
                         leader_qoi[n] = candidate_qoi
-                        leader_likelihoods[n] = candidate_likelihood
-                        leader_priors[n] = candidate_prior
+                        leader_distances[n] = candidate_distance
 
                     # Set new leader as a new sample
-                    idx = np.sum(chain_lengths[:n]) + counter[n]
+                    idx = n * invP0 + counter[n]
                     samples[idx] = leaders[n]
                     qoi[idx] = leader_qoi[n]
-                    likelihoods[idx] = leader_likelihoods[n]
+                    distances[idx] = leader_distances[n]
 
                     # Update chain counter
                     counter[n] += 1
 
                     # Generate new candidate if chain is not complete
-                    if counter[n] < chain_lengths[n]:
+                    while counter[n] < invP0:
                         # Generate new candidate
-                        candidates[n] = np.random.multivariate_normal(leaders[n],covariance_matrix)
+                        candidates[n] = generate_candidate(leaders[n],priors,variances)
 
-                        # Set new candidate in the chain and add to the run queue
-                        param_dicts[n] = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
+                        if np.any(candidates[n] != leaders[n]):
+
+                            # Set new candidate in the chain and add to the run queue
+                            param_dicts[n] = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
                         
-                        if model_type == "external":
-                            chains[n] = createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
-                            runscheduler.enqueueBatch(chains[n])
+                            if model_type == "external":
+                                chains[n] = createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
+                                runscheduler.enqueueBatch(chains[n])
+
+                            break
+
+                        else:
+                            # Set new leader as a new sample
+                            idx = n * invP0 + counter[n]
+                            samples[idx] = leaders[n]
+                            qoi[idx] = leader_qoi[n]
+                            distances[idx] = leader_distances[n]
+
+                            # Update chain counter
+                            counter[n] += 1
 
             if model_type == "external":
                 if runscheduler.queue:
                     runscheduler.flushQueue()
                 else:
                     runscheduler.wait()
-       
-        print("Current max likelihood:",np.max(likelihoods))
-        
+               
         if model_type == "external":
             os.chdir(baseDir)
-            
-        stage += 1
+        
+        if eps <= tol:
+            print("Minimum tolerance value reached")
+            break    
 
-    df = pd.DataFrame(data=samples,columns=model_params+error_params)
-    df["likelihood"] = likelihoods
-
+    df = pd.DataFrame(data=samples,columns=model_params)
+    df["distance"] = distances
     
     return df,qoi

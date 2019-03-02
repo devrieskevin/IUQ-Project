@@ -1,0 +1,16 @@
+Running stage 0...
+Error occured in: /scratch/TMCMC_output/stage_0/batch_16/run_6
+Calculating p for stage 1...
+p: 0.420151167771
+COV: 1.00000006717
+Running stage 1...
+Error occured in: /scratch/TMCMC_output/stage_1/chain_35_batch_0/run_2
+Error occured in: /scratch/TMCMC_output/stage_1/chain_14_batch_2/run_0
+Current max likelihood: 2538056.95455
+Calculating p for stage 2...
+p: 1.0
+COV: 0.938815082392
+Running stage 2...
+Error occured in: /scratch/TMCMC_output/stage_2/chain_1_batch_0/run_5
+Current max likelihood: 2538056.95455
+cp: cannot stat '/scratch/TMCMC_output': No such file or directory

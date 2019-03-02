@@ -92,6 +92,7 @@ def measureEI(t, outputpath):
         fluid, rbc, platelet, ct3 = HCELL_readhdf5.open_hdf5_files(p=False, f=False, ct3=False, half=True, 
                                                                    begin=t, end=t+1, timestep=1, datapath=datapath)
     except (OSError, IOError):
+        print("Error occured in:", outputpath)
         return -100, 0.0
 
 

@@ -188,7 +188,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
                        for m in range(len(model_errors))] for n in range(n_samples)])
 
     likelihoods = np.array([likelihood_function(qoi[n],y,y_err,c_err[n],m_err[n]) for n in range(n_samples)])
-
+    print("Current max likelihood:",np.max(likelihoods))
     
     stage += 1
 

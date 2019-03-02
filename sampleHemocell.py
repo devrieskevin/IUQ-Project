@@ -14,17 +14,20 @@ from lxml import etree
 #from local_config import *
 from lisa_config import *
 
-np.random.seed(666)
+# Set seed for reproducibility
+np.random.seed(777)
 
 def model_prior(sample):
-    kLink_prior = uniform.pdf(sample[0],10.0,140.0)
-    kBend_prior = uniform.pdf(sample[1],50.0,100.0)
-    return np.prod([kLink_prior,kBend_prior])
+    kLink_prior = uniform.pdf(sample[0],15.0,135.0)
+    kBend_prior = uniform.pdf(sample[1],80.0,70.0)
+    viscosityRatio_prior = uniform.pdf(sample[2],5.0,10.0)
+    return np.prod([kLink_prior,kBend_prior,viscosityRatio_prior])
 
 def model_sampler(n_samples):
-    kLink_samples = np.random.uniform(10.0,150.0,n_samples)
-    kBend_samples = np.random.uniform(50.0,150.0,n_samples)
-    return np.column_stack([kLink_samples,kBend_samples])
+    kLink_samples = np.random.uniform(15.0,150.0,n_samples)
+    kBend_samples = np.random.uniform(80.0,150.0,n_samples)
+    viscosityRatio_samples = np.random.uniform(5.0,15.0,n_samples)
+    return np.column_stack([kLink_samples,kBend_samples,viscosityRatio_samples])
 
 def error_prior(sample):
     return uniform.pdf(sample[0],0.001,0.999)
@@ -33,15 +36,14 @@ def error_sampler(n_samples):
     return np.random.uniform(0.001,1.0,(n_samples,1))
 
 if __name__ == "__main__":
-    
     # Define problem parameters
-    model_params = ["kLink","kBend"]
+    model_params = ["kLink","kBend","viscosityRatio"]
     error_params = ["model_uncertainty"]
     design_vars = ["shearrate"]
     
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
-    data = data.loc[data["Treatment"] == 1.0]
+    data = data.loc[data["Treatment"] == 0.5]
     stress,el,el_err = data.values[:12,[1,3,4]].T
 
     # Get data from config files
