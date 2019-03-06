@@ -12,10 +12,6 @@ class ModelScheduler:
     """
     Defines a model object which implements the overhead for running a
     black box model and aggregating the output quantities of interest.
-
-    TODO:
-    - Implement dynamic process queueing
-    - Implement data cleanup after output measurement
     """
 
     def __init__(self, nprocs=1, sleep_time=0.2):
@@ -74,7 +70,8 @@ class ModelScheduler:
         Runs the next process in the queue
         """
 
-        if len(self.queue) > 0:
+        self.refreshBuffer()
+        if len(self.running) < self.nprocs and len(self.queue) > 0:
             run = self.queue.pop(0)
             p = self.run(run)
             run.process = p
@@ -124,8 +121,6 @@ class ModelScheduler:
         """
 
         self.queue.append(run)
-        self.pushQueue()
-
         return
 
     def enqueueBatch(self, batch):
@@ -135,8 +130,6 @@ class ModelScheduler:
 
         for run in batch:
             self.queue.append(run)
-
-        self.pushQueue()
 
         return
 
