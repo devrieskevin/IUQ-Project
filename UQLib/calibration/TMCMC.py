@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import time
 
@@ -169,10 +170,10 @@ class TMCMC():
             # Save the state of the RNG for reproducibility
             self.rng_state = np.random.get_state()
 
-            with open("temp.pkl","wb") as f:
+            with open("TMCMC_log.pkl","wb") as f:
                 dill.dump(self,f)
 
-            os.rename("temp.pkl", self.logpath)
+            shutil.copy2("TMCMC_log.pkl", self.logpath)
 
         return
 

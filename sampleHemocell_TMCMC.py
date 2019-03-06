@@ -80,7 +80,12 @@ if __name__ == "__main__":
     # Sample from the posterior distribution
     os.makedirs("TMCMC_output")
     os.chdir("TMCMC_output")
-    df,qoi = TMCMC.sample(problem,100,nprocs=16)
+    
+    TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_log.pkl" % libpath,nprocs=16)
+    #TMCMC_sampler = TMCMC.load_state("%s/TMCMC_Hemocell_log.pkl" % libpath)
+
+    df,qoi = TMCMC_sampler.sample(10,checkpoint=False)
+    
     os.chdir("..")
 
     # Remove garbage
