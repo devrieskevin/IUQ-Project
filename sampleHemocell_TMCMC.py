@@ -15,19 +15,19 @@ from lxml import etree
 from lisa_config import *
 
 # Set seed for reproducibility
-np.random.seed(777)
+np.random.seed(6345789)
 
 def model_prior(sample):
-    kLink_prior = uniform.pdf(sample[0],15.0,135.0)
-    kBend_prior = uniform.pdf(sample[1],80.0,70.0)
-    viscosityRatio_prior = uniform.pdf(sample[2],5.0,10.0)
-    return np.prod([kLink_prior,kBend_prior,viscosityRatio_prior])
+    kLink_prior = uniform.pdf(sample[0],15.0,185.0)
+    kBend_prior = uniform.pdf(sample[1],80.0,120.0)
+    #viscosityRatio_prior = uniform.pdf(sample[2],5.0,10.0)
+    return np.prod([kLink_prior,kBend_prior])
 
 def model_sampler(n_samples):
-    kLink_samples = np.random.uniform(15.0,150.0,n_samples)
-    kBend_samples = np.random.uniform(80.0,150.0,n_samples)
-    viscosityRatio_samples = np.random.uniform(5.0,15.0,n_samples)
-    return np.column_stack([kLink_samples,kBend_samples,viscosityRatio_samples])
+    kLink_samples = np.random.uniform(15.0,200.0,n_samples)
+    kBend_samples = np.random.uniform(80.0,200.0,n_samples)
+    #viscosityRatio_samples = np.random.uniform(5.0,15.0,n_samples)
+    return np.column_stack([kLink_samples,kBend_samples])
 
 def error_prior(sample):
     return uniform.pdf(sample[0],0.001,0.999)
@@ -37,14 +37,14 @@ def error_sampler(n_samples):
 
 if __name__ == "__main__":
     # Define problem parameters
-    model_params = ["kLink","kBend","viscosityRatio"]
+    model_params = ["kLink","kBend"]
     error_params = ["model_uncertainty"]
     design_vars = ["shearrate"]
     
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
     data = data.loc[data["Treatment"] == 0.5]
-    stress,el,el_err = data.values[:12,[1,3,4]].T
+    stress,el,el_err = data.values[3:12,[1,3,4]].T
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     nuP = float(root.find("domain/nuP").text)
     rhoP = float(root.find("domain/rhoP").text)
 
-    # Compute the shear rate
+    # Compute the shear rates
     shearrate = stress / (nuP * rhoP)
     design_vals = shearrate
 
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # Construct problem dict
     problem = {"model_type":"external",
                "setup":(lambda params: hemocell.setup(modelpath,params)),
-               "measure":(lambda outpath: hemocell.measureEI(4000,outpath)),
+               "measure":(lambda outpath: hemocell.measureEI(8000,outpath)),
                "model_params":model_params,
                "error_params":error_params,
                "design_vars":design_vars,
@@ -81,16 +81,17 @@ if __name__ == "__main__":
     os.makedirs("TMCMC_output")
     os.chdir("TMCMC_output")
     
-    TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_log.pkl" % libpath,nprocs=16)
-    #TMCMC_sampler = TMCMC.load_state("%s/TMCMC_Hemocell_log.pkl" % libpath)
+    TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_normal_3_12_log.pkl" % libpath,nprocs=16)
+    #TMCMC_sampler = TMCMC.load_state("%s/TMCMC_Hemocell_normal_3_12_log.pkl" % libpath)
+    #TMCMC_sampler = TMCMC.TMCMC(problem,logpath=None,nprocs=16)
 
-    df,qoi = TMCMC_sampler.sample(10,checkpoint=False)
+    df,qoi = TMCMC_sampler.sample(1000,checkpoint=False)
     
     os.chdir("..")
 
     # Remove garbage
-    shutil.rmtree("./TMCMC_output")
+    #shutil.rmtree("./TMCMC_output")
     
     # Write output to files
-    df.to_csv("hemocell_samples.csv",sep=";",index=False)
-    np.save("hemocell_qoi.npy",qoi)
+    df.to_csv("hemocell_samples_normal_3_12.csv",sep=";",index=False)
+    np.save("hemocell_qoi_normal_3_12.npy",qoi)

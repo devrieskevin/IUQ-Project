@@ -1,5 +1,10 @@
 import os
+import shutil
 import sys
+import time
+import signal
+
+import dill
 
 import numpy as np
 
@@ -31,31 +36,43 @@ def pollBatch(batch):
     Otherwise returns a return code
     """
 
-    codes = [run.process.poll() for run in batch]
+    codes = [(run.process.poll() if run.process else None) for run in batch]
 
     if None in codes:
         return None
     else:
         return np.sum(codes)
 
-def generate_candidate(sample,priors,variances):   
-    candidate = np.random.multivariate_normal(sample,np.diag(variances))
-    for n in range(sample.shape[0]):
-        ratio = priors[n](candidate[n]) / priors[n](sample[n])
-        randnum = np.random.uniform(0.0,1.0)
-        if randnum > ratio:
-            candidate[n] = sample[n]
+def batchesQueuedAndRunning(batches):
+    """
+    Checks if any batches in a list has both queued and running/finished model runs
+    """
 
-    return candidate
+    queued = np.array([[run.process is None for run in batch] for batch in batches])
+    n_queued = np.sum(queued,axis=1)
+    return np.any((n_queued > 0) & (n_queued < queued.shape[1]))
+
+def load_state(logfile):
+    with open(logfile,"rb") as f:
+        sampler = dill.load(f)
+    
+    return sampler
 
 class ABCSubSim:
-    def __init__(self, problem, invP0=5, tol=0.1, max_stages=20, logstep=50, nprocs=1, sleep_time=0.2):
+    def __init__(self, problem, invP0=5, invPa=10, alpha_goal=0.44, xi_init=1.0, lamb_init=0.6, 
+                 tol=0.1, max_stages=20, nprocs=1, sleep_time=0.2, logstep=50, logpath="ABCSubSim_log.pkl"):
+
         # Store default arguments
         self.invP0 = invP0
+        self.invPa = invPa
+        self.alpha_goal = alpha_goal
+        self.xi_init = xi_init
+        self.lamb_init = lamb_init
         self.tol = tol
         self.max_stages = max_stages
-        self.logstep = logstep
         self.sleep_time = sleep_time
+        self.logstep = logstep
+        self.logpath = logpath
 
         self.model_type = problem.get("model_type",None)
         
@@ -103,39 +120,68 @@ class ABCSubSim:
 
         return
 
+    def save_state(self):
+        if self.logpath:
+            # Save the state of the RNG for reproducibility
+            self.rng_state = np.random.get_state()
+
+            with open("ABCSubSim_log.pkl","wb") as f:
+                dill.dump(self,f)
+
+            shutil.copy2("ABCSubSim_log.pkl", self.logpath)
+
+        return
+
     def initialize(self, n_samples):
-        # Generate samples from the prior distribution
+        # Generate samples from the prior distributions
         self.samples = np.array([self.samplers[n](n_samples) for n in range(len(self.samplers))]).T
         
-        for n in range(self.samples.shape[0]):
-            if np.any(self.samples[n] > 5) or np.any(self.samples[n] < -5):
-                print(self.samples[n])
-        
         self.stage = 0
-        
         print("Initializing...")
 
-        param_dicts = [{self.model_params[m]:self.samples[n,m] for m in range(len(self.model_params))} for n in range(n_samples)]
+        param_dicts = [{self.model_params[m]:self.samples[n,m] for m in range(len(self.model_params))} 
+                       for n in range(n_samples)]
+        
         self.qoi = np.empty((n_samples,self.y.shape[0]))
         self.c_err = np.empty((n_samples,self.y.shape[0]))
         
         if self.model_type == "external":
+            self.initialized = np.zeros(n_samples,dtype=bool)
+        
             os.makedirs("stage_0")
             os.chdir("stage_0")
             
             batches = [createBatch(self.setup, "batch_%i" % (n), self.var_dicts, param_dicts[n]) for n in range(n_samples)]
 
-            # Run model for all parameter sets
+            # Enqueue all sample batches
             for batch in batches:
                 self.runscheduler.enqueueBatch(batch)
 
-            self.runscheduler.flushQueue()
-            self.runscheduler.wait()
+            # Run all batches and retrieve quantities of interest
+            while not np.all(self.initialized):
+                for n,batch in enumerate(batches):
+                    if self.initialized[n]:
+                        continue
 
-            # Retrieve quantities of interest from output
-            for n,batch in enumerate(batches):
-                for m,run in enumerate(batch):
-                    self.qoi[n,m], self.c_err[n,m] = measure("%s/%s/%s/%s" % (self.baseDir,"stage_0",run.batch,run.tag))
+                    for run in batch:
+                        code = (run.process.poll() if run.process else None)
+
+                        if code == -signal.SIGSEGV.value:
+                            self.runscheduler.requeueRun(run)
+                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
+                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
+
+                    if pollBatch(batch) is None:
+                        continue
+
+                    for m,run in enumerate(batch):
+                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
+                        self.qoi[n,m], self.c_err[n,m] = self.measure(outDir)
+
+                    self.initialized[n] = True
+
+                self.runscheduler.pushQueue()
+                time.sleep(self.sleep_time)
 
             os.chdir(self.baseDir)
                     
@@ -153,6 +199,119 @@ class ABCSubSim:
         self.lognext = self.logstep
         self.stage += 1
 
+        # Initialize MMA self-regulation parameters
+        self.lamb = self.lamb_init
+
+        return
+
+    def update_regulation_variables(self):
+        sigmoid = lambda x: 2 / (1 + np.exp(-100 * x)) - 1
+
+        alpha_diff_prev = self.alpha_diff
+
+        # Calculate and store shared regulation variables
+        self.alpha_diff = self.alpha - self.alpha_goal
+        self.lamb = np.exp(np.log(self.lamb) + self.xi * self.alpha_diff)
+        self.xi = max(0,self.xi + sigmoid(alpha_diff_prev * self.alpha_diff))
+        
+        return
+
+    def generate_candidate(self, sample):
+        candidate = np.random.multivariate_normal(sample,np.diag(self.variances))
+        for n in range(sample.shape[0]):
+            ratio = self.priors[n](candidate[n]) / self.priors[n](sample[n])
+            randnum = np.random.uniform(0.0,1.0)
+            if randnum > ratio:
+                candidate[n] = sample[n]
+
+        return candidate
+
+    def sample_unique_candidate(self, n):
+        while self.counter[n] < self.invP0:
+            # Generate new candidate
+            self.candidates[n] = self.generate_candidate(self.leaders[n])
+
+            if np.any(self.candidates[n] != self.leaders[n]):
+
+                # Set new candidate in the chain and add to the run queue
+                self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
+            
+                if self.model_type == "external":
+                    self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),self.var_dicts,self.param_dicts[n])
+                    self.runscheduler.enqueueBatch(self.chains[n])
+
+                break
+
+            else:
+                # Reject and set current leader as a new sample
+                idx = n * self.invP0 + self.counter[n]
+                self.samples[idx] = self.leaders[n]
+                self.qoi[idx] = self.leader_qoi[n]
+                self.distances[idx] = self.leader_distances[n]
+
+                # Update chain counter
+                self.counter[n] += 1
+                self.chain_sum += 1
+
+        return
+                
+    def advance_MMA(self):
+        for n in range(self.sample_min, self.sample_max):
+            if self.counter[n] < self.invP0:
+                
+                if self.model_type == "external":
+                    
+                    for run in self.chains[n]:
+                        code = (run.process.poll() if run.process else None)
+
+                        if code == -signal.SIGSEGV.value:
+                            self.runscheduler.requeueRun(run)
+                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
+                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
+                    
+
+                    if pollBatch(self.chains[n]) is None:
+                        continue
+                
+                # Measure Quantity of interest
+                candidate_qoi = np.empty(self.y.shape[0])
+                c_err = np.empty(self.y.shape[0])
+                
+                if self.model_type == "external":
+                    for m,run in enumerate(self.chains[n]):
+                        candidate_qoi[m], c_err[m] = self.measure("%s/%s/%s/%s" % 
+                                                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
+                
+                elif self.model_type == "python":
+                    params = dict(self.param_dicts[n])
+                    for m in range(self.y.shape[0]):
+                        params.update(self.var_dicts[m])
+                        candidate_qoi[m], c_err[m] = self.evaluate(params)
+                                        
+                # Compute candidate distance
+                candidate_distance = self.distance(candidate_qoi,self.y)
+
+                if candidate_distance < self.eps:
+                    # Accept candidate as new leader
+                    self.leaders[n] = self.candidates[n]
+                    self.leader_qoi[n] = candidate_qoi
+                    self.leader_distances[n] = candidate_distance
+                    
+                    self.accepted += 1
+
+                # Set new leader as a new sample
+                idx = n * self.invP0 + self.counter[n]
+                self.samples[idx] = self.leaders[n]
+                self.qoi[idx] = self.leader_qoi[n]
+                self.distances[idx] = self.leader_distances[n]
+
+                # Update chain counter
+                self.counter[n] += 1
+                self.chain_sum += 1
+
+                # Generate new candidates until a unique candidate is sampled
+                self.sample_unique_candidate(n)
+
         return
 
     def iterate_SubSim(self, n_samples):
@@ -164,142 +323,92 @@ class ABCSubSim:
             self.qoi = self.qoi[sort_indices]
 
             # Compute current tolerance value
-            self.eps = (self.distances[n_samples // self.invP0] + self.distances[n_samples // self.invP0 + 1]) / 2
+            self.eps = (self.distances[n_samples // self.invP0 - 1] + self.distances[n_samples // self.invP0]) / 2
             print("Current tolerance value:", self.eps)
-
-            # Compute the variances for the proposal distributions of the candidate components
-            self.variances = 0.01 * np.ones(self.samples.shape[1])
 
             # Set samples with the smallest distances as leaders
             self.leaders = self.samples[:n_samples // self.invP0,:]
             self.leader_qoi = self.qoi[:n_samples // self.invP0,:]
             self.leader_distances = self.distances[:n_samples // self.invP0]
 
+            # Permute leader samples for self-regulated MMA sampling
+            permuted_indices = np.random.permutation(self.leaders.shape[0])
+            self.leaders = self.leaders[permuted_indices]
+            self.leader_qoi = self.leader_qoi[permuted_indices]
+            self.leader_distances = self.leader_distances[permuted_indices]
+
             # Set first samples of next stage to leaders
             self.samples[::self.invP0] = self.leaders
             self.qoi[::self.invP0] = self.leader_qoi
             self.distances[::self.invP0] = self.leader_distances
 
-            # Set chain counters
+            # Initialize chain counters
             self.counter = np.ones(self.leaders.shape[0],dtype=int)
             self.chain_sum = np.sum(self.counter)
 
-            if self.model_type == "external":
-                os.makedirs("stage_%i" % self.stage)
-                os.chdir("stage_%i" % self.stage)
-
-            # Generate candidates and create batches per chain
+            # Initialize Self-regulation MMA variables
+            self.alpha_diff = 1.0
+            self.xi = self.xi_init
+            
+            # Initialize first chain group
+            self.group = 0
+            self.sample_min = 0
+            self.sample_max = n_samples // self.invP0 // self.invPa
+            self.accepted = 0
+            
+            # Initialize candidates
             self.candidates = np.empty(self.leaders.shape)
             self.param_dicts = [{} for n in range(self.candidates.shape[0])]
             self.chains = [[] for n in range(self.leaders.shape[0])]
-            for n in range(self.leaders.shape[0]):
-                # Preemptively accept or reject candidates before evaluating
-                while self.counter[n] < self.invP0:
-                    # Generate new candidate
-                    self.candidates[n] = generate_candidate(self.leaders[n],self.priors,self.variances)
 
-                    if np.any(self.candidates[n] != self.leaders[n]):
+        if self.model_type == "external":
+            os.makedirs("stage_%i" % self.stage)
+            os.chdir("stage_%i" % self.stage)
 
-                        # Set new candidate in the chain and add to the run queue
-                        self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
-                     
-                        if self.model_type == "external":
-                            self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),self.var_dicts,self.param_dicts[n])
-                            self.runscheduler.enqueueBatch(self.chains[n])
-                        break
-
-                    else:
-                        # Set new leader as a new sample
-                        idx = n * self.invP0 + self.counter[n]
-                        self.samples[idx] = self.leaders[n]
-                        self.qoi[idx] = self.leader_qoi[n]
-                        self.distances[idx] = self.leader_distances[n]
-
-                        # Update chain counter
-                        self.counter[n] += 1
-                        self.chain_sum += 1
+        while self.group < self.invPa:
+            # Calculate variances, and sample and enqueue initial candidates
+            if np.sum(self.counter[self.sample_min:self.sample_max]) == (n_samples // self.invP0 // self.invPa):
+                self.variances = self.lamb * np.var(self.leaders[self.sample_min:self.sample_max],ddof=1,axis=0)
+                for n in range(self.sample_min, self.sample_max):
+                    self.sample_unique_candidate(n)
         
-            if self.model_type == "external":
-                self.runscheduler.flushQueue()
+            while not np.all(self.counter[self.sample_min:self.sample_max] == self.invP0):
+                self.advance_MMA()
 
-        while np.sum(self.counter) < n_samples:
-            for n in range(self.leaders.shape[0]):
-                if self.counter[n] < self.invP0:
-                    
-                    if self.model_type == "external" and pollBatch(self.chains[n]) is None:
-                        continue
-                    
-                    # Measure Quantity of interest
-                    candidate_qoi = np.empty(self.y.shape[0])
-                    c_err = np.empty(self.y.shape[0])
-                    
+                if self.chain_sum >= self.lognext:
                     if self.model_type == "external":
-                        for m,run in enumerate(self.chains[n]):
-                            candidate_qoi[m], c_err[m] = self.measure("%s/%s/%s/%s" % 
-                                                                      (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
-                    
-                    elif self.model_type == "python":
-                        params = dict(self.param_dicts[n])
-                        for m in range(self.y.shape[0]):
-                            params.update(self.var_dicts[m])
-                            candidate_qoi[m], c_err[m] = self.evaluate(params)
-                                            
-                    # Compute candidate distance
-                    candidate_distance = self.distance(candidate_qoi,self.y)
+                        while batchesQueuedAndRunning(self.chains):
+                            self.runscheduler.pushNext()
+                            time.sleep(self.sleep_time)
 
-                    if candidate_distance < self.eps:
-                        # Accept candidate as new leader
-                        self.leaders[n] = self.candidates[n]
-                        self.leader_qoi[n] = candidate_qoi
-                        self.leader_distances[n] = candidate_distance
+                        self.runscheduler.wait()
+                        self.advance_MMA()
 
-                    # Set new leader as a new sample
-                    idx = n * self.invP0 + self.counter[n]
-                    self.samples[idx] = self.leaders[n]
-                    self.qoi[idx] = self.leader_qoi[n]
-                    self.distances[idx] = self.leader_distances[n]
+                    self.lognext = (self.chain_sum // self.logstep + 1) * self.logstep
+                    self.save_state()
 
-                    # Update chain counter
-                    self.counter[n] += 1
-                    self.chain_sum += 1
-
-                    # Generate new candidate if chain is not complete
-                    while self.counter[n] < self.invP0:
-                        # Generate new candidate
-                        self.candidates[n] = generate_candidate(self.leaders[n],self.priors,self.variances)
-
-                        if np.any(self.candidates[n] != self.leaders[n]):
-
-                            # Set new candidate in the chain and add to the run queue
-                            self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
+                if self.model_type == "external":
+                    self.runscheduler.pushQueue()
+                    time.sleep(self.sleep_time)
+   
+            # Update variables for next chain group
+            self.group += 1
+            self.sample_min = self.sample_max
+            self.sample_max += n_samples // self.invP0 // self.invPa
                         
-                            if self.model_type == "external":
-                                self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),self.var_dicts,self.param_dicts[n])
-                                self.runscheduler.enqueueBatch(self.chains[n])
+            self.alpha = self.accepted / (n_samples // self.invP0 // self.invPa) / (self.invP0 - 1)
+            self.update_regulation_variables()
+            
+            self.accepted = 0
+            self.save_state()
 
-                            break
-
-                        else:
-                            # Set new leader as a new sample
-                            idx = n * self.invP0 + self.counter[n]
-                            self.samples[idx] = self.leaders[n]
-                            self.qoi[idx] = self.leader_qoi[n]
-                            self.distances[idx] = self.leader_distances[n]
-
-                            # Update chain counter
-                            self.counter[n] += 1
-                            self.chain_sum += 1
-
-            if self.model_type == "external":
-                if self.runscheduler.queue:
-                    self.runscheduler.flushQueue()
-                else:
-                    self.runscheduler.wait()
+            #print("Acceptance rate:", self.alpha)
                
         if self.model_type == "external":
             os.chdir(self.baseDir)
 
         self.counter = None
+        self.lognext = self.logstep
         self.stage += 1
 
         return
@@ -307,14 +416,19 @@ class ABCSubSim:
     def sample(self, n_samples, checkpoint=False):
         # Assert that (n_samples / invP0) and invP0 are both integers
         assert (n_samples // self.invP0 * self.invP0) == n_samples
+        
+        # Assert that (n_samples / invP0 / invPa) and invPa are both integers
+        assert (n_samples // self.invP0 // self.invPa * self.invPa) == (n_samples // self.invP0)
 
         if not checkpoint:
             self.initialize(n_samples)
+            self.save_state()
         
         while self.stage <= self.max_stages:
             print("Running stage %i..." % self.stage)
 
             self.iterate_SubSim(n_samples)
+            self.save_state()
             
             if self.eps <= self.tol:
                 print("Minimum tolerance value reached")

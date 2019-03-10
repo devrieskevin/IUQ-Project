@@ -3,9 +3,11 @@ import os
 import time
 import subprocess
 
+import shutil
+
 # Import environment paths
-# from lisa_config import *
-from local_config import *
+from lisa_config import *
+#from local_config import *
 
 
 class ModelScheduler:
@@ -115,24 +117,49 @@ class ModelScheduler:
 
         return
 
+    def requeueRun(self, run):
+        """
+        Cleans up run output directory and reinserts run into the run queue
+        """
+
+        # Remove Run output directory
+        baseDir = os.getcwd()
+        if run.batch:
+            runDir = "%s/%s/%s" % (baseDir,run.batch,run.tag)
+        else:
+            runDir = "%s/%s" % (baseDir,run.tag)
+
+        shutil.rmtree(runDir)
+
+        # Reset Run process to None
+        run.process = None
+
+        self.prependRun(run)
+        return
+
     def enqueue(self, run):
         """
-        Adds a parameter set to the run queue
+        Adds a Run to the run queue
         """
 
         self.queue.append(run)
         return
 
-    def enqueueBatch(self, batch):
+    def prependRun(self, run):
         """
-        Adds a batch of parameter sets to the run queue
+        Prepends a Run to the run queue
         """
-
-        for run in batch:
-            self.queue.append(run)
-
+        
+        self.queue = [run] + self.queue
         return
 
+    def enqueueBatch(self, batch):
+        """
+        Adds a batch of Runs to the run queue
+        """
+
+        self.queue = self.queue + batch
+        return
 
 class Run:
     """
@@ -155,30 +182,18 @@ if __name__ == "__main__":
 
     scheduler = ModelScheduler(nprocs=2)
 
-    params = {"shearrate":25, "kLink":1, "kBend":1, "viscosityRatio":1}
+    params = {"shearrate":11707.3170732, "kLink":111.69961457, "kBend":121.72321948, "viscosityRatio":11.0079201145}
 
     foo = Run(setup, "foo", params)
-
-    params = {"shearrate":50, "kLink":2, "kBend":2, "viscosityRatio":2}
-
-    bar = Run(setup, "bar", params)
     
-    scheduler.enqueueBatch([foo,bar])
+    scheduler.enqueueBatch([foo])
     scheduler.flushQueue()
-    scheduler.wait()
 
     print("running", scheduler.running)
     print("queue", scheduler.queue)
-
-    bla = Run(setup, "bla", params)
-
-    scheduler.enqueue(bla)
-    scheduler.flushQueue()
-
-    print("running", scheduler.running)
 
     scheduler.wait()
 
     datapath = "./foo"
 
-    print("Elongation Index:", hemocell.measureEI(70000, datapath))
+    print("Elongation Index:", hemocell.measureEI(4000, datapath))

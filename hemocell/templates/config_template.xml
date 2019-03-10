@@ -21,8 +21,8 @@
 </domain>
 
 <sim>
-    <tmax> 4000 </tmax> <!-- total number of iterations -->
-    <tmeas> 4000 </tmeas> <!-- interval after which data is written --> 
+    <tmax> 8000 </tmax> <!-- total number of iterations -->
+    <tmeas> 8000 </tmeas> <!-- interval after which data is written --> 
     <tcheckpoint>500000</tcheckpoint>
     <interiorViscosity>10</interiorViscosity>
     <interiorViscosityEntireGrid>1000</interiorViscosityEntireGrid>

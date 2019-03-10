@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 import time
+import signal
 
 import dill
 
@@ -193,23 +194,42 @@ class TMCMC():
         self.c_err = np.empty((n_samples,self.y.shape[0]))
         
         if self.model_type == "external":
+            self.initialized = np.zeros(n_samples,dtype=bool)
+
             os.makedirs("stage_%i" % self.stage)
             os.chdir("stage_%i" % self.stage)
             
             batches = [createBatch(self.setup, "batch_%i" % (n), self.var_dicts, param_dicts[n]) for n in range(n_samples)]
 
-            # Run model for all parameter sets
+            # Enqueue all sample batches
             for batch in batches:
                 self.runscheduler.enqueueBatch(batch)
 
-            self.runscheduler.flushQueue()
-            self.runscheduler.wait()
+            # Run all batches and retrieve quantities of interest
+            while not np.all(self.initialized):
+                for n,batch in enumerate(batches):
+                    if self.initialized[n]:
+                        continue
 
-            # Retrieve quantities of interest from output
-            for n,batch in enumerate(batches):
-                for m,run in enumerate(batch):
-                    outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
-                    self.qoi[n,m], self.c_err[n,m] = self.measure(outDir)
+                    for run in batch:
+                        code = (run.process.poll() if run.process else None)
+
+                        if code == -signal.SIGSEGV.value:
+                            self.runscheduler.requeueRun(run)
+                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
+                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
+
+                    if pollBatch(batch) is None:
+                        continue
+
+                    for m,run in enumerate(batch):
+                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
+                        self.qoi[n,m], self.c_err[n,m] = self.measure(outDir)
+
+                    self.initialized[n] = True
+
+                self.runscheduler.pushQueue()
+                time.sleep(self.sleep_time)
 
             os.chdir(self.baseDir)
                     
@@ -261,9 +281,19 @@ class TMCMC():
     def advance_MH(self):
         for n in range(self.leaders.shape[0]):
             if self.counter[n] < self.chain_lengths[n]:
-                
-                if self.model_type == "external" and pollBatch(self.chains[n]) is None:
-                    continue
+                if self.model_type == "external":
+                    
+                    for run in self.chains[n]:
+                        code = (run.process.poll() if run.process else None)
+
+                        if code == -signal.SIGSEGV.value:
+                            self.runscheduler.requeueRun(run)
+                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
+                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
+                    
+
+                    if pollBatch(self.chains[n]) is None:
+                        continue
                 
                 # Measure Quantity of interest
                 candidate_qoi = np.empty(self.y.shape[0])
