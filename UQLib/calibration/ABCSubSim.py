@@ -48,7 +48,10 @@ def batchesQueuedAndRunning(batches):
     Checks if any batches in a list has both queued and running/finished model runs
     """
 
-    queued = np.array([[run.process is None for run in batch] for batch in batches])
+    # Remove empty batches
+    created = [batch for batch in batches if batch is not []]
+
+    queued = np.array([[run.process is None for run in batch] for batch in created])
     n_queued = np.sum(queued,axis=1)
     return np.any((n_queued > 0) & (n_queued < queued.shape[1]))
 
@@ -160,23 +163,23 @@ class ABCSubSim:
             # Run all batches and retrieve quantities of interest
             while not np.all(self.initialized):
                 for n,batch in enumerate(batches):
-                    if self.initialized[n]:
+                    if self.initialized[n] or pollBatch(batch) is None:
                         continue
 
-                    for run in batch:
-                        code = (run.process.poll() if run.process else None)
-
-                        if code == -signal.SIGSEGV.value:
-                            self.runscheduler.requeueRun(run)
-                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
-                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
-
-                    if pollBatch(batch) is None:
-                        continue
-
+                    failed = False
                     for m,run in enumerate(batch):
                         outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
-                        self.qoi[n,m], self.c_err[n,m] = self.measure(outDir)
+                        measurement = self.measure(outDir)
+                        
+                        if measurement is not None:
+                            self.qoi[n,m], self.c_err[n,m] = measurement
+                        else:
+                            print("Simulation in %s failed, requeued" % outDir)
+                            self.runscheduler.requeueRun(run)
+                            failed = True
+
+                    if failed:
+                        continue
 
                     self.initialized[n] = True
 
@@ -237,7 +240,9 @@ class ABCSubSim:
                 self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
             
                 if self.model_type == "external":
-                    self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),self.var_dicts,self.param_dicts[n])
+                    self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),
+                                                 self.var_dicts,self.param_dicts[n])
+                    
                     self.runscheduler.enqueueBatch(self.chains[n])
 
                 break
@@ -256,31 +261,30 @@ class ABCSubSim:
         return
                 
     def advance_MMA(self):
-        for n in range(self.sample_min, self.sample_max):
+        for n in range(self.sample_min,self.sample_max):
             if self.counter[n] < self.invP0:
-                
-                if self.model_type == "external":
-                    
-                    for run in self.chains[n]:
-                        code = (run.process.poll() if run.process else None)
-
-                        if code == -signal.SIGSEGV.value:
-                            self.runscheduler.requeueRun(run)
-                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
-                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
-                    
-
-                    if pollBatch(self.chains[n]) is None:
-                        continue
+                if self.model_type == "external" and pollBatch(self.chains[n]) is None:
+                    continue
                 
                 # Measure Quantity of interest
                 candidate_qoi = np.empty(self.y.shape[0])
                 c_err = np.empty(self.y.shape[0])
                 
                 if self.model_type == "external":
+                    failed = False
                     for m,run in enumerate(self.chains[n]):
-                        candidate_qoi[m], c_err[m] = self.measure("%s/%s/%s/%s" % 
-                                                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
+                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
+                        measurement = self.measure(outDir)
+                        
+                        if measurement is not None:
+                            candidate_qoi[m], c_err[m] = measurement
+                        else:
+                            print("Simulation in %s failed, requeued" % outDir)
+                            self.runscheduler.requeueRun(run)
+                            failed = True
+
+                    if failed:
+                        continue
                 
                 elif self.model_type == "python":
                     params = dict(self.param_dicts[n])
@@ -377,7 +381,7 @@ class ABCSubSim:
 
                 if self.chain_sum >= self.lognext:
                     if self.model_type == "external":
-                        while batchesQueuedAndRunning(self.chains):
+                        while batchesQueuedAndRunning(self.chains[self.sample_min:self.sample_max]):
                             self.runscheduler.pushNext()
                             time.sleep(self.sleep_time)
 

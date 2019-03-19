@@ -208,23 +208,23 @@ class TMCMC():
             # Run all batches and retrieve quantities of interest
             while not np.all(self.initialized):
                 for n,batch in enumerate(batches):
-                    if self.initialized[n]:
+                    if self.initialized[n] or pollBatch(batch) is None:
                         continue
 
-                    for run in batch:
-                        code = (run.process.poll() if run.process else None)
-
-                        if code == -signal.SIGSEGV.value:
-                            self.runscheduler.requeueRun(run)
-                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
-                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
-
-                    if pollBatch(batch) is None:
-                        continue
-
+                    failed = False
                     for m,run in enumerate(batch):
                         outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
-                        self.qoi[n,m], self.c_err[n,m] = self.measure(outDir)
+                        measurement = self.measure(outDir)
+                        
+                        if measurement is not None:
+                            self.qoi[n,m], self.c_err[n,m] = measurement
+                        else:
+                            print("Simulation in %s failed, requeued" % outDir)
+                            self.runscheduler.requeueRun(run)
+                            failed = True
+
+                    if failed:
+                        continue
 
                     self.initialized[n] = True
 
@@ -281,28 +281,28 @@ class TMCMC():
     def advance_MH(self):
         for n in range(self.leaders.shape[0]):
             if self.counter[n] < self.chain_lengths[n]:
-                if self.model_type == "external":
-                    
-                    for run in self.chains[n]:
-                        code = (run.process.poll() if run.process else None)
-
-                        if code == -signal.SIGSEGV.value:
-                            self.runscheduler.requeueRun(run)
-                            print("Segmentation fault occurred in %s/%s/%s/%s, process requeued" % 
-                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
-                    
-
-                    if pollBatch(self.chains[n]) is None:
-                        continue
+                if self.model_type == "external" and pollBatch(self.chains[n]) is None:
+                    continue
                 
                 # Measure Quantity of interest
                 candidate_qoi = np.empty(self.y.shape[0])
                 c_err = np.empty(self.y.shape[0])
                 
                 if self.model_type == "external":
+                    failed = False
                     for m,run in enumerate(self.chains[n]):
-                        candidate_qoi[m], c_err[m] = self.measure("%s/%s/%s/%s" % 
-                                                                  (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag))
+                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
+                        measurement = self.measure(outDir)
+                        
+                        if measurement is not None:
+                            candidate_qoi[m], c_err[m] = measurement
+                        else:
+                            print("Simulation in %s failed, requeued" % outDir)
+                            self.runscheduler.requeueRun(run)
+                            failed = True
+
+                    if failed:
+                        continue
                 
                 elif self.model_type == "python":
                     params = dict(self.param_dicts[n])
@@ -390,7 +390,7 @@ class TMCMC():
                 # Schedule chain runs
                 for chain in self.chains:
                     self.runscheduler.enqueueBatch(chain)
-
+        
         if self.model_type == "external":
             os.makedirs("stage_%i" % self.stage)
             os.chdir("stage_%i" % self.stage)

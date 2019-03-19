@@ -38,7 +38,10 @@ def buildMaterialXml(source, params, dest=None):
     for name in params.keys():
         elem = root.find('MaterialModel/%s' % name)
         if elem is not None:
-            elem.text = " " + str(params[name]) + " "
+            if name == "enableInteriorViscosity":
+                elem.text = " " + str(int(params[name])) + " "
+            else:
+                elem.text = " " + str(params[name]) + " "
 
     if dest:
         tree.write(dest, xml_declaration=True, pretty_print=True)
@@ -73,6 +76,11 @@ def buildConfigXml(source, params, outDir=None, dest=None):
 
         output.text = outDir
 
+    for name in params.keys():
+        elem = root.find('sim/%s' % name)
+        if elem is not None:
+            elem.text = " " + str(int(params[name])) + " "
+
     if dest:
         tree.write(dest, xml_declaration=True, pretty_print=True)
     else:
@@ -81,19 +89,26 @@ def buildConfigXml(source, params, outDir=None, dest=None):
     return
 
 
-def measureEI(t, outputpath):
+def measureEI(outputpath):
     """
     Measures the Elongation Index of a RBC by fitting an ellipsoid to the RBC mesh
     """
 
+    configpath = "%s/config.xml" % outputpath
+    tree = etree.parse(configpath, parser=etree.XMLParser(remove_blank_text=True, remove_comments=True))
+    root = tree.getroot()
+
+    tmax = root.find("sim/tmax")
+    t = int(float(tmax.text) + 0.5)
+
     datapath = "%s/tmp/hdf5/" % (outputpath)
 
+    # Return None if the Lisa job crashes
     try:
         fluid, rbc, platelet, ct3 = HCELL_readhdf5.open_hdf5_files(p=False, f=False, ct3=False, half=True, 
                                                                    begin=t, end=t+1, timestep=1, datapath=datapath)
     except (OSError, IOError):
-        print("Error occured in:", outputpath)
-        return -100, 0.0
+        return None
 
 
     # Measure elongation index
@@ -108,4 +123,48 @@ def measureEI(t, outputpath):
     
     A, B, elongation_index = EL.elongation_index(X, Y)
 
+    if np.isnan(elongation_index):
+        return -100, 0.0
+
     return elongation_index, 0.0
+    
+def measureEI_full(outputpath):
+    configpath = "%s/config.xml" % outputpath
+    tree = etree.parse(configpath, parser=etree.XMLParser(remove_blank_text=True, remove_comments=True))
+    root = tree.getroot()
+
+    tmax_elem = root.find("sim/tmax")
+    tmax = int(float(tmax_elem.text) + 0.5)
+    
+    tmeas_elem = root.find("sim/tmeas")
+    tmeas = int(float(tmeas_elem.text) + 0.5)
+
+    datapath = "%s/tmp/hdf5/" % (outputpath)
+
+    # Return None if the Lisa job crashes
+    try:
+
+        fluid, rbc, platelet, ct3 = HCELL_readhdf5.open_hdf5_files(p=False, f=False, ct3=False, half=True, 
+                                                                   begin=tmeas, end=tmax+1, timestep=tmeas, datapath=datapath)
+    except (OSError, IOError):
+        return None
+
+    el = []
+    err = []
+
+    # Measure elongation index
+    for n in range(len(rbc)):
+        pos = np.array(rbc[n].position)
+        if pos.shape[0] > 0:
+            X = pos[:, 0]
+            Y = pos[:, 1]
+            Z = pos[:, 2]
+            
+            A, B, elongation_index = EL.elongation_index(X, Y)
+            el.append(elongation_index)
+            err.append(0.0)
+        else:
+            el.append(-100)
+            err.append(0.0)
+
+    return np.array(el), np.array(err)
