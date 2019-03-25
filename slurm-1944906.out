@@ -1,0 +1,24 @@
+Initializing...
+/scratch/hemocell/EL.py:47: RuntimeWarning: invalid value encountered in sqrt
+  res1=np.sqrt(up/down1)
+/scratch/hemocell/EL.py:48: RuntimeWarning: invalid value encountered in sqrt
+  res2=np.sqrt(up/down2)
+Simulation in /scratch/TMCMC_output/stage_0/batch_81/run_8 failed, requeued
+Current max likelihood: 615.616912239
+Calculating p for stage 1...
+p: 1e-06
+COV: 3.97805427632
+Running stage 1...
+Simulation in /scratch/TMCMC_output/stage_1/chain_3_batch_0/run_1 failed, requeued
+Simulation in /scratch/TMCMC_output/stage_1/chain_5_batch_14/run_2 failed, requeued
+Current max likelihood: 1685.24990662
+Calculating p for stage 2...
+p: 0.565139337144
+COV: 0.999999999953
+Running stage 2...
+Current max likelihood: 1816.98176452
+Calculating p for stage 3...
+p: 1.0
+COV: 0.392564578113
+Running stage 3...
+Current max likelihood: 1816.98176452

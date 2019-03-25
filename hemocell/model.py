@@ -119,11 +119,13 @@ def measureEI(outputpath):
         Y = pos[:, 1]
         Z = pos[:, 2]
     else:
+        print("RBC discarded by HemoCell in %s, returning dummy value" % datapath)
         return -100, 0.0
     
     A, B, elongation_index = EL.elongation_index(X, Y)
 
     if np.isnan(elongation_index):
+        print("RBC broke HemoCell in %s, returning dummy value" % datapath)
         return -100, 0.0
 
     return elongation_index, 0.0

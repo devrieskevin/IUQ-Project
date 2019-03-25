@@ -37,12 +37,12 @@ if __name__ == "__main__":
     design_vals = shearrate
 
     # Construct sample array
-    df = pd.read_csv("TMCMC_hemocell_samples_normal_3_12.csv",sep=";")
+    df = pd.read_csv("TMCMC_hemocell_samples_normal_3_12_tmax_8000.csv",sep=";")
     df = df.loc[np.argmax(df["likelihood"].values)]
     model_params = df.loc[params].values
 
-    tmax = 100000
-    tmeas = 2000
+    tmax = 200000
+    tmeas = 4000
 
     t_vals = np.arange(tmeas,tmax+1,tmeas)
 

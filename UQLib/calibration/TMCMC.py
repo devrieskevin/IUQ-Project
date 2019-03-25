@@ -443,6 +443,8 @@ class TMCMC():
 
             self.save_state()
             
+        print("Sampling finished :)")
+
         df = pd.DataFrame(data=self.samples,columns=self.model_params+self.error_params)
         df["likelihood"] = self.likelihoods
 

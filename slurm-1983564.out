@@ -1,0 +1,55 @@
+Initializing...
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_3/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_0/run_3/tmp/hdf5/, returning dummy value
+/scratch/hemocell/EL.py:48: RuntimeWarning: invalid value encountered in sqrt
+  res2=np.sqrt(up/down2)
+RBC broke HemoCell in /scratch/ABCSubSim_output/stage_0/batch_7/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_11/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_17/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_18/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_19/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_19/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_25/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_25/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_28/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_29/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_29/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_30/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_31/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_31/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_31/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_32/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_39/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_39/run_3/tmp/hdf5/, returning dummy value
+RBC broke HemoCell in /scratch/ABCSubSim_output/stage_0/batch_40/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_42/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_44/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_46/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_48/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_49/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_50/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_54/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_56/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_57/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_61/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_61/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_63/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_66/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_66/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_70/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_70/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_71/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_76/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_79/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_79/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_81/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_85/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_86/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_88/run_3/tmp/hdf5/, returning dummy value
+RBC broke HemoCell in /scratch/ABCSubSim_output/stage_0/batch_89/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_96/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_98/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in /scratch/ABCSubSim_output/stage_0/batch_99/run_3/tmp/hdf5/, returning dummy value
+Running stage 1...
+Current tolerance value: 0.218467790448

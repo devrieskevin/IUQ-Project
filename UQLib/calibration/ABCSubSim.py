@@ -341,6 +341,9 @@ class ABCSubSim:
             self.leader_qoi = self.leader_qoi[permuted_indices]
             self.leader_distances = self.leader_distances[permuted_indices]
 
+            # Sample variance of leader samples
+            self.leaders_var = np.var(self.leaders,ddof=1,axis=0)
+
             # Set first samples of next stage to leaders
             self.samples[::self.invP0] = self.leaders
             self.qoi[::self.invP0] = self.leader_qoi
@@ -372,7 +375,7 @@ class ABCSubSim:
         while self.group < self.invPa:
             # Calculate variances, and sample and enqueue initial candidates
             if np.sum(self.counter[self.sample_min:self.sample_max]) == (n_samples // self.invP0 // self.invPa):
-                self.variances = self.lamb * np.var(self.leaders[self.sample_min:self.sample_max],ddof=1,axis=0)
+                self.variances = self.lamb * self.leaders_var
                 for n in range(self.sample_min, self.sample_max):
                     self.sample_unique_candidate(n)
         
@@ -402,6 +405,8 @@ class ABCSubSim:
                         
             self.alpha = self.accepted / (n_samples // self.invP0 // self.invPa) / (self.invP0 - 1)
             self.update_regulation_variables()
+            
+            print("Percentage accepted from group %i: %f" % (self.group,self.alpha))
             
             self.accepted = 0
             self.save_state()
@@ -437,6 +442,8 @@ class ABCSubSim:
             if self.eps <= self.tol:
                 print("Minimum tolerance value reached")
                 break    
+
+        print("Sampling finished :)")
 
         df = pd.DataFrame(data=self.samples,columns=self.model_params)
         df["distance"] = self.distances
