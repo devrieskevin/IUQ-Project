@@ -22,7 +22,9 @@ def setup(modelpath, params):
     buildMaterialXml("%s/RBC_HO_template.xml" % (templatepath), params, dest="RBC_HO.xml")
     buildConfigXml("%s/config_template.xml" % (templatepath), params, dest="config.xml")
     shutil.copyfile("%s/RBC_HO.pos" % (templatepath), "./RBC_HO.pos")
+    #shutil.copyfile("%s/hemocell.sh" % (templatepath),"./hemocell.sh")
 
+    #return ["./hemocell.sh"]
     return [modelpath, "config.xml"]
 
 
@@ -120,15 +122,15 @@ def measureEI(outputpath):
         Z = pos[:, 2]
     else:
         print("RBC discarded by HemoCell in %s, returning dummy value" % datapath)
-        return -100, 0.0
+        return np.array([-100, 0.0])
     
     A, B, elongation_index = EL.elongation_index(X, Y)
 
     if np.isnan(elongation_index):
         print("RBC broke HemoCell in %s, returning dummy value" % datapath)
-        return -100, 0.0
+        return np.array([-100, 0.0])
 
-    return elongation_index, 0.0
+    return np.array([elongation_index, 0.0])
     
 def measureEI_full(outputpath):
     configpath = "%s/config.xml" % outputpath

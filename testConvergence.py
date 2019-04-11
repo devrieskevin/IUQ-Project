@@ -1,6 +1,8 @@
 import os
 import shutil
 
+import argparse
+
 import numpy as np
 from scipy.stats import norm,uniform,multivariate_normal
 
@@ -16,14 +18,40 @@ from lxml import etree
 from lisa_config import *
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    # Add arguments
+    parser.add_argument("--method",dest="method",type=str,default="TMCMC")
+    parser.add_argument("--tmax",dest="tmax",type=int,required=True)
+    parser.add_argument("--tmeas",dest="tmeas",type=int,required=True)
+    parser.add_argument("--tsource",dest="tsource",type=int,required=True)
+    parser.add_argument("--enableInteriorViscosity",dest="enableInteriorViscosity",type=int,default=0)
+    parser.add_argument("--imin",dest="imin",type=int,default=3)
+    parser.add_argument("--imax",dest="imax",type=int,default=12)
+
+    args = parser.parse_args()
+
+    # Set design variable argument values
+    method = args.method
+    tsource = args.tsource
+    tmax = args.tmax
+    tmeas = args.tmeas
+    enableInteriorViscosity = args.enableInteriorViscosity
+    imin = args.imin
+    imax = args.imax
+
     # Define problem parameters
-    params = ["kLink","kBend"]
-    design_vars = ["shearrate"]
+    if enableInteriorViscosity:
+        params = ["kLink","kBend","viscosityRatio"]
+    else:
+        params = ["kLink","kBend"]
+    
+    design_vars = ["shearrate","enableInteriorViscosity"]
     
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
     data = data.loc[data["Treatment"] == 0.5]
-    stress,el,el_err = data.values[3:12,[1,3,4]].T
+    stress,el,el_err = data.values[imin:imax,[1,3,4]].T
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
@@ -34,21 +62,25 @@ if __name__ == "__main__":
 
     # Compute the shear rates
     shearrate = stress / (nuP * rhoP)
-    design_vals = shearrate
+    design_vals = np.row_stack(np.broadcast(shearrate,enableInteriorViscosity))
 
     # Construct sample array
-    df = pd.read_csv("TMCMC_hemocell_samples_normal_3_12_tmax_8000.csv",sep=";")
-    df = df.loc[np.argmax(df["likelihood"].values)]
-    model_params = df.loc[params].values
+    if enableInteriorViscosity:
+        df = pd.read_csv("%s/%s_hemocell_samples_visc_%i_%i_tmax_%i.csv" % (outputpath,method,imin,imax,tsource),sep=";")
+    else:
+        df = pd.read_csv("%s/%s_hemocell_samples_normal_%i_%i_tmax_%i.csv" % (outputpath,method,imin,imax,tsource),sep=";")
+    
+    if method == "TMCMC":
+        df = df.loc[np.argmax(df["likelihood"].values)]
+    elif method == "ABCSubSim":
+        df = df.loc[np.argmin(df["distance"].values)]
 
-    tmax = 200000
-    tmeas = 4000
+    model_params = df.loc[params].values
 
     t_vals = np.arange(tmeas,tmax+1,tmeas)
 
     tiled = np.tile(model_params,(t_vals.shape[0],1))
     samples = np.column_stack([tiled,t_vals,t_vals])
-    #sample = model_params
 
     # Construct problem dict
     problem = {"setup":(lambda params: hemocell.setup(modelpath,params)),
@@ -68,4 +100,7 @@ if __name__ == "__main__":
     os.chdir("..")
 
     # Write output to files
-    np.save("convergence_qoi.npy",qoi)
+    if enableInteriorViscosity:
+        np.save("convergence_qoi_visc_%i_%i.npy" % (imin,imax),qoi)
+    else:
+        np.save("convergence_qoi_normal_%i_%i.npy" % (imin,imax),qoi)

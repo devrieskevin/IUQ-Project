@@ -2,15 +2,21 @@
 #SBATCH -N 1
 #SBATCH -t 5-00:00:00
 
-TMAX=80000
-VISC=0
-IMIN=8
-IMAX=12
+N=500
+TMAX=40000
+VISC=1
+IMIN=3
+IMAX=10
+NPROCS=16
+MODEL_TYPE="external"
+
+echo "Starting script"
+date
 
 cp -r $HOME/IUQ-Project/* $TMPDIR
 cd $TMPDIR
 
-python sampleHemocell_ABCSubSim.py --enableInteriorViscosity $VISC --tmax $TMAX --imin $IMIN --imax $IMAX
+python sampleHemocell_ABCSubSim.py --enableInteriorViscosity $VISC --n_samples $N --tmax $TMAX --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE}
 
 if [[ $VISC == 1 ]]; then
     cp  $TMPDIR/ABCSubSim_hemocell_qoi_visc_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
@@ -19,3 +25,6 @@ else
     cp  $TMPDIR/ABCSubSim_hemocell_qoi_normal_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
     cp  $TMPDIR/ABCSubSim_hemocell_samples_normal_${IMIN}_${IMAX}_tmax_${TMAX}.csv $HOME/results
 fi
+
+echo "Ending script"
+date

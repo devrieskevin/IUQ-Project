@@ -23,9 +23,9 @@ def distance(a,b):
     return np.sqrt(np.mean((a-b)**2))
 
 def model_priors(enableInteriorViscosity):
-    kLink_prior = lambda sample: uniform.pdf(sample,15.0,185.0)
-    kBend_prior = lambda sample: uniform.pdf(sample,80.0,120.0)
-    viscosityRatio_prior = lambda sample: uniform.pdf(sample,5.0,15.0)
+    kLink_prior = lambda sample: uniform.pdf(sample,15.0,285.0)
+    kBend_prior = lambda sample: uniform.pdf(sample,80.0,220.0)
+    viscosityRatio_prior = lambda sample: uniform.pdf(sample,1.0,49.0)
     
     if enableInteriorViscosity:
         return [kLink_prior,kBend_prior,viscosityRatio_prior]
@@ -33,9 +33,9 @@ def model_priors(enableInteriorViscosity):
         return [kLink_prior,kBend_prior]
 
 def model_samplers(enableInteriorViscosity):
-    kLink_sampler = lambda n_samples: np.random.uniform(15.0,200.0,n_samples)
-    kBend_sampler = lambda n_samples: np.random.uniform(80.0,200.0,n_samples)
-    viscosityRatio_sampler = lambda n_samples: np.random.uniform(5.0,20.0,n_samples)
+    kLink_sampler = lambda n_samples: np.random.uniform(15.0,300.0,n_samples)
+    kBend_sampler = lambda n_samples: np.random.uniform(80.0,300.0,n_samples)
+    viscosityRatio_sampler = lambda n_samples: np.random.uniform(1.0,50.0,n_samples)
     
     if enableInteriorViscosity:
         return [kLink_sampler,kBend_sampler,viscosityRatio_sampler]
@@ -46,20 +46,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Add arguments
+    parser.add_argument("--n_samples",dest="n_samples",type=int,default=100)
     parser.add_argument("--tmax",type=int,required=True)
     parser.add_argument("--enableInteriorViscosity",type=int,default=0)
     parser.add_argument("--checkpointed",dest="checkpointed",action="store_true",default=False)
     parser.add_argument("--imin",dest="imin",type=int,default=3)
     parser.add_argument("--imax",dest="imax",type=int,default=12)
+    parser.add_argument("--nprocs",dest="nprocs",type=int,default=16)
+    parser.add_argument("--model_type",dest="model_type",type=str,default="external")
 
     args = parser.parse_args()
 
     # Set design variable argument values
+    n_samples = args.n_samples
     tmax = args.tmax
     enableInteriorViscosity = args.enableInteriorViscosity
     checkpointed = args.checkpointed
     imin = args.imin
     imax = args.imax
+    nprocs = args.nprocs
+    model_type = args.model_type
 
     # Define problem parameters
     if enableInteriorViscosity:
@@ -87,7 +93,7 @@ if __name__ == "__main__":
     design_vals = np.row_stack(np.broadcast(shearrate,tmax,tmax,enableInteriorViscosity))
 
     # Construct problem dict
-    problem = {"model_type":"external",
+    problem = {"model_type":model_type,
                "setup":(lambda params: hemocell.setup(modelpath,params)),
                "measure":hemocell.measureEI,
                "distance":distance,
@@ -107,17 +113,17 @@ if __name__ == "__main__":
     if enableInteriorViscosity:
         if not checkpointed:
             ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax), 
-                                                    tol=0.05, invPa=5, max_stages=5, nprocs=16)
+                                                    logstep=1000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
         else:
             ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
     else:
         if not checkpointed:
             ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax), 
-                                                    tol=0.05, invPa=5, max_stages=5, nprocs=16)
+                                                    logstep=1000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
         else:
             ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
 
-    df,qoi = ABCSubSim_sampler.sample(100,checkpoint=checkpointed)
+    df,qoi = ABCSubSim_sampler.sample(n_samples,checkpoint=checkpointed)
     
     os.chdir("..")
 

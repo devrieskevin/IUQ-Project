@@ -27,7 +27,7 @@ def normal_likelihood(output, data, data_err, comp_err, model_err):
     return multivariate_normal.pdf(data,mean=output,cov=covariance_matrix)
 
 
-def createBatch(setup,tag,var_dicts,param_dict):
+def createBatch(setup,tag,var_dicts,param_dict,path,measure):
     """
     Returns a list of Run objects using the same batch name
     """
@@ -37,7 +37,7 @@ def createBatch(setup,tag,var_dicts,param_dict):
     for n in range(len(var_dicts)):
         dicts[n].update(var_dicts[n])
 
-    batch = [scheduler.Run(setup, "run_%i" % (n), dicts[n], batch=tag) for n in range(len(var_dicts))]
+    batch = [scheduler.Run(setup, "run_%i" % (n), dicts[n], path=path, measure=measure, batch=tag) for n in range(len(var_dicts))]
 
     return batch
 
@@ -120,11 +120,17 @@ class TMCMC():
     
         # Unpack model functions according to model type
         if self.model_type == "external":
-            # Get base working directory
-            self.baseDir = os.getcwd()
-            
             # Initialize model run scheduler
             self.runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
+
+            self.sleep_time = sleep_time
+            
+            self.setup = problem["setup"]
+            self.measure = problem["measure"]
+        elif self.model_type == "external_MPI":            
+            # Initialize model run scheduler
+            self.runscheduler = scheduler.MPI_Scheduler(sleep_time=sleep_time)
+
             self.sleep_time = sleep_time
             
             self.setup = problem["setup"]
@@ -193,13 +199,11 @@ class TMCMC():
         self.qoi = np.empty((n_samples,self.y.shape[0]))
         self.c_err = np.empty((n_samples,self.y.shape[0]))
         
-        if self.model_type == "external":
+        if self.model_type in ["external","external_MPI"]:
             self.initialized = np.zeros(n_samples,dtype=bool)
-
-            os.makedirs("stage_%i" % self.stage)
-            os.chdir("stage_%i" % self.stage)
             
-            batches = [createBatch(self.setup, "batch_%i" % (n), self.var_dicts, param_dicts[n]) for n in range(n_samples)]
+            path = "stage_%i" % (self.stage)
+            batches = [createBatch(self.setup, "batch_%i" % (n), self.var_dicts, param_dicts[n], path, self.measure) for n in range(n_samples)]
 
             # Enqueue all sample batches
             for batch in batches:
@@ -208,13 +212,16 @@ class TMCMC():
             # Run all batches and retrieve quantities of interest
             while not np.all(self.initialized):
                 for n,batch in enumerate(batches):
-                    if self.initialized[n] or pollBatch(batch) is None:
+                    if self.initialized[n] or self.runscheduler.pollBatch(batch) is None:
                         continue
 
                     failed = False
                     for m,run in enumerate(batch):
-                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
-                        measurement = self.measure(outDir)
+                        if self.model_type == "external":
+                            outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
+                            measurement = self.measure(outDir)
+                        elif self.model_type == "external_MPI":
+                            measurement = run.output
                         
                         if measurement is not None:
                             self.qoi[n,m], self.c_err[n,m] = measurement
@@ -230,8 +237,6 @@ class TMCMC():
 
                 self.runscheduler.pushQueue()
                 time.sleep(self.sleep_time)
-
-            os.chdir(self.baseDir)
                     
         elif self.model_type == "python":
             for n in range(n_samples):
@@ -281,19 +286,22 @@ class TMCMC():
     def advance_MH(self):
         for n in range(self.leaders.shape[0]):
             if self.counter[n] < self.chain_lengths[n]:
-                if self.model_type == "external" and pollBatch(self.chains[n]) is None:
+                if self.model_type == "external" and self.runscheduler.pollBatch(self.chains[n]) is None:
                     continue
                 
                 # Measure Quantity of interest
                 candidate_qoi = np.empty(self.y.shape[0])
                 c_err = np.empty(self.y.shape[0])
                 
-                if self.model_type == "external":
+                if self.model_type in ["external","external_MPI"]:
                     failed = False
                     for m,run in enumerate(self.chains[n]):
-                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
-                        measurement = self.measure(outDir)
-                        
+                        if self.model_type == "external":
+                            outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
+                            measurement = self.measure(outDir)
+                        elif self.model_type == "external_MPI":
+                            measurement = run.output
+                             
                         if measurement is not None:
                             candidate_qoi[m], c_err[m] = measurement
                         else:
@@ -350,9 +358,10 @@ class TMCMC():
                     # Set new candidate in the chain and add to the run queue
                     self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
                     
-                    if self.model_type == "external":
+                    if self.model_type in ["external","external_MPI"]:
+                        path = "stage_%i" % (self.stage)
                         self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % 
-                                                     (n,self.counter[n]),self.var_dicts,self.param_dicts[n])
+                                                     (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure)
                         
                         self.runscheduler.enqueueBatch(self.chains[n])
 
@@ -382,25 +391,22 @@ class TMCMC():
             self.param_dicts = [{self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))} 
                                 for n in range(self.candidates.shape[0])]
         
-            if self.model_type == "external":
+            if self.model_type in ["external","external_MPI"]:
+                path = "stage_%i" % (self.stage)
                 self.chains = [createBatch(self.setup,"chain_%i_batch_%i" % 
-                                           (n,self.counter[n]),self.var_dicts,self.param_dicts[n]) 
+                                           (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure) 
                                for n in range(self.leaders.shape[0])]
 
                 # Schedule chain runs
                 for chain in self.chains:
                     self.runscheduler.enqueueBatch(chain)
-        
-        if self.model_type == "external":
-            os.makedirs("stage_%i" % self.stage)
-            os.chdir("stage_%i" % self.stage)
-                    
+                            
         while self.chain_sum < n_samples:
             self.advance_MH()
 
             if self.chain_sum >= self.lognext:
-                if self.model_type == "external":
-                    while batchesQueuedAndRunning(self.chains):
+                if self.model_type in ["external","external_MPI"]:
+                    while self.runscheduler.batchesQueuedAndRunning(self.chains):
                         self.runscheduler.pushNext()
                         time.sleep(self.sleep_time)
 
@@ -410,15 +416,12 @@ class TMCMC():
                 self.lognext = (self.chain_sum // self.logstep + 1) * self.logstep
                 self.save_state()
 
-            if self.model_type == "external":
+            if self.model_type in ["external","external_MPI"]:
                 self.runscheduler.pushQueue()
                 time.sleep(self.sleep_time)
 
         print("Current max likelihood:",np.max(self.likelihoods))
         
-        if self.model_type == "external":
-            os.chdir(self.baseDir)
-
         self.counter = None
         self.lognext = self.logstep
         self.stage += 1
@@ -429,6 +432,9 @@ class TMCMC():
         if checkpoint:
             # Set back RNG state
             np.random.set_state(self.rng_state)
+
+            if self.model_type == "external_MPI":
+                self.runscheduler.set_MPI_variables()
         else:
             self.initialize(n_samples)
             self.save_state()
@@ -444,6 +450,9 @@ class TMCMC():
             self.save_state()
             
         print("Sampling finished :)")
+
+        if model_type == "external_MPI":
+            self.runscheduler.finalize()
 
         df = pd.DataFrame(data=self.samples,columns=self.model_params+self.error_params)
         df["likelihood"] = self.likelihoods
@@ -525,7 +534,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
         os.makedirs("stage_%i" % stage)
         os.chdir("stage_%i" % stage)
         
-        batches = [createBatch(setup, "batch_%i" % (n), var_dicts, param_dicts[n]) for n in range(n_samples)]
+        batches = [createBatch(setup, "batch_%i" % (n), var_dicts, param_dicts[n], measure) for n in range(n_samples)]
 
         # Run model for all parameter sets
         for batch in batches:
@@ -609,7 +618,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
             os.makedirs("stage_%i" % stage)
             os.chdir("stage_%i" % stage)
             
-            chains = [createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n]) 
+            chains = [createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n],measure) 
                       for n in range(leaders.shape[0])]
 
             # Schedule chain runs
@@ -676,7 +685,7 @@ def sample(problem, n_samples, likelihood_function=normal_likelihood, p_schedule
                         param_dicts[n] = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
                         
                         if model_type == "external":
-                            chains[n] = createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
+                            chains[n] = createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n],measure)
                             runscheduler.enqueueBatch(chains[n])
 
             if model_type == "external":

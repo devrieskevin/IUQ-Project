@@ -15,7 +15,7 @@ import pandas as pd
 
 import scheduler
 
-def createBatch(setup,tag,var_dicts,param_dict):
+def createBatch(setup,tag,var_dicts,param_dict,path,measure):
     """
     Returns a list of Run objects using the same batch name
     """
@@ -25,7 +25,7 @@ def createBatch(setup,tag,var_dicts,param_dict):
     for n in range(len(var_dicts)):
         dicts[n].update(var_dicts[n])
 
-    batch = [scheduler.Run(setup, "run_%i" % (n), dicts[n], batch=tag) for n in range(len(var_dicts))]
+    batch = [scheduler.Run(setup, "run_%i" % (n), dicts[n], path=path, measure=measure, batch=tag) for n in range(len(var_dicts))]
 
     return batch
 
@@ -151,10 +151,8 @@ class ABCSubSim:
         if self.model_type == "external":
             self.initialized = np.zeros(n_samples,dtype=bool)
         
-            os.makedirs("stage_0")
-            os.chdir("stage_0")
-            
-            batches = [createBatch(self.setup, "batch_%i" % (n), self.var_dicts, param_dicts[n]) for n in range(n_samples)]
+            path = "stage_%i" % (self.stage)
+            batches = [createBatch(self.setup, "batch_%i" % (n), self.var_dicts, param_dicts[n], path, self.measure) for n in range(n_samples)]
 
             # Enqueue all sample batches
             for batch in batches:
@@ -163,12 +161,12 @@ class ABCSubSim:
             # Run all batches and retrieve quantities of interest
             while not np.all(self.initialized):
                 for n,batch in enumerate(batches):
-                    if self.initialized[n] or pollBatch(batch) is None:
+                    if self.initialized[n] or self.runscheduler.pollBatch(batch) is None:
                         continue
 
                     failed = False
                     for m,run in enumerate(batch):
-                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
+                        outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
                         measurement = self.measure(outDir)
                         
                         if measurement is not None:
@@ -240,8 +238,9 @@ class ABCSubSim:
                 self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
             
                 if self.model_type == "external":
+                    path = "stage_%i" % self.stage
                     self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),
-                                                 self.var_dicts,self.param_dicts[n])
+                                                 self.var_dicts,self.param_dicts[n],path,self.measure)
                     
                     self.runscheduler.enqueueBatch(self.chains[n])
 
@@ -263,7 +262,7 @@ class ABCSubSim:
     def advance_MMA(self):
         for n in range(self.sample_min,self.sample_max):
             if self.counter[n] < self.invP0:
-                if self.model_type == "external" and pollBatch(self.chains[n]) is None:
+                if self.model_type == "external" and self.runscheduler.pollBatch(self.chains[n]) is None:
                     continue
                 
                 # Measure Quantity of interest
@@ -273,7 +272,7 @@ class ABCSubSim:
                 if self.model_type == "external":
                     failed = False
                     for m,run in enumerate(self.chains[n]):
-                        outDir = "%s/%s/%s/%s" % (self.baseDir,"stage_%i" % self.stage,run.batch,run.tag)
+                        outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
                         measurement = self.measure(outDir)
                         
                         if measurement is not None:
@@ -368,10 +367,6 @@ class ABCSubSim:
             self.param_dicts = [{} for n in range(self.candidates.shape[0])]
             self.chains = [[] for n in range(self.leaders.shape[0])]
 
-        if self.model_type == "external":
-            os.makedirs("stage_%i" % self.stage)
-            os.chdir("stage_%i" % self.stage)
-
         while self.group < self.invPa:
             # Calculate variances, and sample and enqueue initial candidates
             if np.sum(self.counter[self.sample_min:self.sample_max]) == (n_samples // self.invP0 // self.invPa):
@@ -384,7 +379,7 @@ class ABCSubSim:
 
                 if self.chain_sum >= self.lognext:
                     if self.model_type == "external":
-                        while batchesQueuedAndRunning(self.chains[self.sample_min:self.sample_max]):
+                        while self.runscheduler.batchesQueuedAndRunning(self.chains[self.sample_min:self.sample_max]):
                             self.runscheduler.pushNext()
                             time.sleep(self.sleep_time)
 
@@ -412,9 +407,6 @@ class ABCSubSim:
             self.save_state()
 
             #print("Acceptance rate:", self.alpha)
-               
-        if self.model_type == "external":
-            os.chdir(self.baseDir)
 
         self.counter = None
         self.lognext = self.logstep
