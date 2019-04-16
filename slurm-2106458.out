@@ -1,0 +1,201 @@
+Starting script
+Fri Apr 12 19:34:44 CEST 2019
+Initializing...
+/scratch/scheduler.py:236: FutureWarning: comparison to `None` will result in an elementwise object comparison in the future.
+  if None in outputs:
+RBC discarded by HemoCell in stage_0/batch_159/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_0/batch_319/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_0/batch_361/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_0/batch_369/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_0/batch_397/run_6/tmp/hdf5/, returning dummy value
+Current max likelihood: 132849.682056
+Calculating p for stage 1...
+p: 0.280608517625
+COV: 0.999999999207
+Running stage 1...
+RBC discarded by HemoCell in stage_1/chain_38_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_39_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_39_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_39_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_41_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_84_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_84_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_84_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_84_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_84_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_84_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_84_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_135_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_135_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_14_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_14_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_14_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_14_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_14_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_14_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_14_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_107_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_109_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_168_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_168_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_168_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_168_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_168_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_168_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_168_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_2/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_2/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_2/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_2/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_2/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_2/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_2/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_2/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_2/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_2/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_2/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_2/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_2/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_197_batch_2/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_4/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_4/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_4/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_4/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_4/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_4/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_1/chain_98_batch_4/run_6/tmp/hdf5/, returning dummy value
+Current max likelihood: 611627.995041
+Calculating p for stage 2...
+p: 0.693241563194
+COV: 0.999999974234
+Running stage 2...
+RBC discarded by HemoCell in stage_2/chain_105_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_105_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_105_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_105_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_105_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_105_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_105_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_114_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_114_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_114_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_114_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_114_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_114_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_114_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_115_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_116_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_115_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_115_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_115_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_116_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_115_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_116_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_115_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_115_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_116_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_116_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_116_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_116_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_174_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_198_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_198_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_198_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_198_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_198_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_198_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_198_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_173_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_173_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_173_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_173_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_173_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_173_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_173_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_175_batch_1/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_175_batch_1/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_175_batch_1/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_175_batch_1/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_175_batch_1/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_175_batch_1/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_175_batch_1/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_2/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_2/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_2/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_2/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_2/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_2/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_2/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_3/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_3/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_3/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_3/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_3/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_3/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_74_batch_3/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_76_batch_5/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_76_batch_5/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_76_batch_5/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_76_batch_5/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_76_batch_5/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_76_batch_5/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_2/chain_76_batch_5/run_6/tmp/hdf5/, returning dummy value
+Current max likelihood: 1256406.17228
+Calculating p for stage 3...
+p: 1.0
+COV: 0.573982709756
+Running stage 3...
+RBC discarded by HemoCell in stage_3/chain_54_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_54_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_54_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_54_batch_0/run_3/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_54_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_54_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_54_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_55_batch_0/run_0/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_55_batch_0/run_2/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_55_batch_0/run_1/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_55_batch_0/run_4/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_55_batch_0/run_5/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_55_batch_0/run_6/tmp/hdf5/, returning dummy value
+RBC discarded by HemoCell in stage_3/chain_55_batch_0/run_3/tmp/hdf5/, returning dummy value

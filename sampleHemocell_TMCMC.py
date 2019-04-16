@@ -126,6 +126,7 @@ if __name__ == "__main__":
             TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax),logstep=100,nprocs=nprocs)
         else:
             TMCMC_sampler = TMCMC.load_state("%s/TMCMC_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
+            TMCMC_sampler.runscheduler.running = [None for n in range(TMCMC_sampler.runscheduler.nprocs)]
     else:
         if not checkpointed:
             TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax),logstep=100,nprocs=nprocs)

@@ -1,0 +1,29 @@
+Starting script
+Sat Apr 13 23:14:12 CEST 2019
+Running stage 3...
+/scratch/scheduler.py:236: FutureWarning: comparison to `None` will result in an elementwise object comparison in the future.
+  if None in outputs:
+Percentage accepted from group 2: 0.400000
+Percentage accepted from group 3: 0.450000
+Percentage accepted from group 4: 0.500000
+Percentage accepted from group 5: 0.525000
+Percentage accepted from group 6: 0.425000
+Percentage accepted from group 7: 0.575000
+Percentage accepted from group 8: 0.525000
+Percentage accepted from group 9: 0.400000
+Percentage accepted from group 10: 0.450000
+Running stage 4...
+Current tolerance value: 0.0279806193456
+Percentage accepted from group 1: 0.625000
+Percentage accepted from group 2: 0.625000
+Percentage accepted from group 3: 0.250000
+Percentage accepted from group 4: 0.500000
+Percentage accepted from group 5: 0.550000
+Percentage accepted from group 6: 0.550000
+Percentage accepted from group 7: 0.350000
+Percentage accepted from group 8: 0.425000
+Percentage accepted from group 9: 0.425000
+Percentage accepted from group 10: 0.400000
+Running stage 5...
+Current tolerance value: 0.023304037338
+Percentage accepted from group 1: 0.525000

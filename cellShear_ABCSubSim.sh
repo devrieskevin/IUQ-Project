@@ -16,7 +16,7 @@ date
 cp -r $HOME/IUQ-Project/* $TMPDIR
 cd $TMPDIR
 
-python sampleHemocell_ABCSubSim.py --enableInteriorViscosity $VISC --n_samples $N --tmax $TMAX --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE}
+python sampleHemocell_ABCSubSim.py --enableInteriorViscosity $VISC --n_samples $N --tmax $TMAX --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} --checkpointed
 
 if [[ $VISC == 1 ]]; then
     cp  $TMPDIR/ABCSubSim_hemocell_qoi_visc_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results

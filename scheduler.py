@@ -9,13 +9,6 @@ import shutil
 
 import dill
 
-#from mpi4py import MPI
-
-#MPI.pickle.dumps = dill.dumps
-#MPI.pickle.loads = dill.loads
-
-#MPI.pickle = dill
-
 import numpy as np
 
 # Import environment paths
@@ -37,7 +30,7 @@ class ModelScheduler:
         self.sleep_time = sleep_time
 
         # List processes currently running
-        self.running = []
+        self.running = [None for n in range(self.nprocs)]
 
         # Run FIFO queue
         self.queue = []
@@ -77,7 +70,27 @@ class ModelScheduler:
         Refreshes the process buffer by removing terminated processes
         """
 
-        self.running = [p for p in self.running if p.poll() is None]
+        for n in range(self.nprocs):
+            if self.running[n] is None:
+                continue
+
+            if self.running[n].process.poll() is not None:
+                if self.running[n].batch:
+                    outpath = "%s/%s/%s" % (self.running[n].path,self.running[n].batch,self.running[n].tag)
+                else:
+                    outpath = "%s/%s" % (self.running[n].path,self.running[n].tag)
+
+                self.running[n].output = self.running[n].measure(outpath)
+
+                if self.running[n].output is None:
+                    print("Return code:",self.running[n].process.returncode)
+                    print("Task failed in process %i, restarting task" % n)
+                    shutil.rmtree(outpath)
+                    p = self.run(self.running[n])
+                    self.running[n].process = p
+                else:
+                    self.running[n] = None            
+
         return
 
     def pushNext(self):
@@ -86,11 +99,18 @@ class ModelScheduler:
         """
 
         self.refreshBuffer()
-        if len(self.running) < self.nprocs and len(self.queue) > 0:
-            run = self.queue.pop(0)
-            p = self.run(run)
-            run.process = p
-            self.running.append(p)
+        if len(self.queue) > 0:
+            for n in range(self.nprocs):
+                if self.running[n] is None:
+                    run = self.queue.pop(0)
+
+                    p = self.run(run)
+                    
+                    run.process = p
+                    run.running = True
+                    self.running[n] = run
+
+                    break
 
         return
 
@@ -100,8 +120,18 @@ class ModelScheduler:
         """
 
         self.refreshBuffer()
-        while len(self.running) < self.nprocs and len(self.queue) > 0:
-            self.pushNext()
+        for n in range(self.nprocs):
+            if len(self.queue) == 0:
+                break
+
+            if self.running[n] is None:
+                run = self.queue.pop(0)
+
+                p = self.run(run)
+                    
+                run.process = p
+                run.running = True
+                self.running[n] = run
 
         return
 
@@ -122,11 +152,27 @@ class ModelScheduler:
         Waits until all processes in the process buffer are completed
         """
 
-        # Flush the process buffer
-        for p in self.running:
-            p.wait()
-        
-        self.refreshBuffer()
+        for n in range(self.nprocs):
+            if self.running[n] is None:
+                continue
+
+            self.running[n].process.wait()
+
+            if self.running[n].batch:
+                outpath = "%s/%s/%s" % (self.running[n].path,self.running[n].batch,self.running[n].tag)
+            else:
+                outpath = "%s/%s" % (self.running[n].path,self.running[n].tag)
+
+            self.running[n].output = self.running[n].measure(outpath)
+            while self.running[n].output is None:
+                print("Task failed in process %i, restarting task" % n)
+                shutil.rmtree(outpath)
+                p = self.run(self.running[n])
+                self.running[n].process = p
+                self.running[n].process.wait()
+                self.running[n].output = self.running[n].measure(outpath)
+
+            self.running[n] = None
 
         return
 
@@ -176,25 +222,24 @@ class ModelScheduler:
     def pollBatch(self,batch):
         """
         Polls all runs in a batch
-        Returns None if any runs has not yet been completed
-        Otherwise returns a return code
+        Returns None if any of the runs has not yet been completed
+        Otherwise returns 0
         """
 
-        codes = [(run.process.poll() if run.process else None) for run in batch]
+        outputs = [run.output for run in batch]
 
-        if None in codes:
+        if None in outputs:
             return None
         else:
-            return np.sum(codes)
+            return 0
 
     def batchesQueuedAndRunning(self,batches):
         """
-        Checks if any batches in a list has both queued and running/finished model runs
+        Checks if any batch in a list has both queued and running/finished model runs
         """
 
-        queued = np.array([[run.process is None for run in batch] for batch in batches])
-        n_queued = np.sum(queued,axis=1)
-        return np.any((n_queued > 0) & (n_queued < queued.shape[1]))
+        running = np.array([[run.running for run in batch] for batch in batches],dtype=bool)
+        return np.any(np.any(running,axis=1) & ~np.all(running,axis=1))
 
 class MPI_Scheduler:
     """
@@ -436,7 +481,7 @@ class MPI_Scheduler:
         """
         Polls all runs in a batch
         Returns None if any runs has not yet been completed
-        Otherwise returns a return code
+        Otherwise returns 0
         """
 
         outputs = [run.output for run in batch]
@@ -470,7 +515,7 @@ class ClusterScheduler:
     on the corresponding allocated nodes.
     """
 
-    def __init__(self, sleep_time=0.2):
+    def __init__(self, nprocs=1, sleep_time=0.2):
         # The server socket used to listen for clients
         self.server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         
@@ -480,66 +525,107 @@ class ClusterScheduler:
         # Set initial sleep time
         self.sleep_time = sleep_time
 
-        # List processes currently running
-        self.running = []
+        # Number of possible concurrent local processes
+        self.scheduler = ModelScheduler(nprocs,sleep_time)
 
         # Run FIFO queue
         self.queue = []
 
         return
 
-    def server_init(self,host='',port=6677,backlog=5):
-        self.server.bind((host,port))
-        self.server.listen(backlog)
+    def reset_server(self):
+        # Create a new server socket
+        self.server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 
+        # Reset accepted client dictionary
+        self.clients = {}
+
+        # Setup the server again with the previously used parameters
+        self.server_bind(self.host,self.port)
+        self.server_listen(self.backlog)
+
+        return
+
+    def server_bind(self,host='',port=6677):
+        self.host = host
+        self.port = port
+
+        self.server.bind((host,port))
+        return
+
+    def server_listen(self,backlog=5):
+        self.backlog = backlog
+
+        self.server.listen(backlog)
         return
 
     def accept_client(self):
         client,addr = self.server.accept()
 
-        rlist,wlist,xlist = select.select([client],[],[])
+        text = b""
+        while not text.endswith(b"\r\n\r\n\r\n"):
+            rlist,_,_ = select.select([client],[],[])
+            text += client.recv(1024)
 
-        message = client.recv(1024)
+        message = text[:-len(b"\r\n\r\n\r\n")]
         client_data = dill.loads(message)
 
+        # Initialize server-side client data
         self.clients[client] = client_data
+        self.clients[client]["running"] = [None for n in range(self.clients[client]["nprocs"])]
+
+        print("Server connected to client with %i processes" % self.clients[client]["nprocs"])
 
         return
 
-    def run(self, run):
-        """
-        Starts a process for a single model run
-        """
+    def accept_all_clients(self):
+        while True:
+            rlist,_,_ = select.select([self.server],[],[],0)
 
-        # Define base directory
-        baseDir = os.getcwd()
+            if rlist:
+                self.accept_client()
+            else:
+                break
 
-        # Make and go into the output directory
-        if run.batch:
-            os.makedirs("%s/%s/%s" % (run.path,run.batch,run.tag), exist_ok=True)
-            os.chdir("%s/%s/%s" % (run.path,run.batch,run.tag))
-        else:
-            os.makedirs("%s/%s" % (run.path,run.tag), exist_ok=True)
-            os.chdir("%s/%s" % (run.path,run.tag))
-
-        # Set up for the model run
-        args = run.setup(run.params)
-
-        # Run the model
-        # print("Batch: %s, Run: %s running..." % (run.batch, run.tag))
-        with open("stdout.log","wb") as outfile, open("stderr.log","wb") as errfile:
-            p = subprocess.Popen(args, stdout=outfile, stderr=errfile)
-
-        os.chdir(baseDir)
-
-        return p
+        return
 
     def refreshBuffer(self):
         """
-        Refreshes the process buffer by removing terminated processes
+        Refreshes the process buffer by removing 
+        finished runs and collecting the model output
         """
 
-        self.running = [p for p in self.running if p.poll() is None]
+        #print("Server command: refreshBuffer")
+
+        # Refresh local buffer
+        self.scheduler.refreshBuffer()
+
+        # Get clients with running processes
+        refreshable = [client for client in self.clients if np.any([run is not None for run in self.clients[client]["running"]])]
+
+        # Send refresh command to clients
+        for client in refreshable:
+            data = {"command":"refreshBuffer"}
+            message = dill.dumps(data)
+            message += b"\r\n\r\n\r\n"
+            _,wlist,_ = select.select([],[client],[])
+            client.sendall(message)
+
+        # Collect outputs and refresh client buffers
+        for client in refreshable:
+            text = b""
+
+            while not text.endswith(b"\r\n\r\n\r\n"):
+                rlist,_,_ = select.select([client],[],[])
+                text += client.recv(1024)
+
+            message = text[:-len(b"\r\n\r\n\r\n")]
+            data = dill.loads(message)
+
+            for n,output in data:
+                self.clients[client]["running"][n].output = output
+                self.clients[client]["running"][n] = None
+
         return
 
     def pushNext(self):
@@ -547,12 +633,34 @@ class ClusterScheduler:
         Runs the next process in the queue
         """
 
+        #print("Server command: pushNext")
+        #print("Queue length:", len(self.queue))
+
         self.refreshBuffer()
-        if len(self.running) < self.nprocs and len(self.queue) > 0:
-            run = self.queue.pop(0)
-            p = self.run(run)
-            run.process = p
-            self.running.append(p)
+        self.accept_all_clients()
+
+        if len(self.queue) > 0:
+            if None in self.scheduler.running:
+                run = self.queue.pop(0)
+                self.scheduler.enqueue(run)
+                self.scheduler.pushQueue()
+            else:
+                for client in self.clients:
+                    for n in range(self.clients[client]["nprocs"]):
+                        if self.clients[client]["running"][n] is None:
+                            run = self.queue.pop(0)
+
+                            data = {"command":"run","runs":[(n,run)]}
+                            message = dill.dumps(data)
+                            message += b"\r\n\r\n\r\n"
+
+                            _,wlist,_ = select.select([],[client],[])
+                            client.sendall(message)
+
+                            run.running = True
+                            self.clients[client]["running"][n] = run
+
+                            return
 
         return
 
@@ -561,9 +669,42 @@ class ClusterScheduler:
         Fills the process buffer with queued runs
         """
 
+        #print("Server command: pushQueue")
+
         self.refreshBuffer()
-        while len(self.running) < self.nprocs and len(self.queue) > 0:
-            self.pushNext()
+        self.accept_all_clients()
+
+        # Push local scheduler
+        for running in self.scheduler.running:
+            if len(self.queue) == 0:
+                self.scheduler.pushQueue()
+                return
+
+            if running is None:
+                run = self.queue.pop(0)
+                self.scheduler.enqueue(run)
+
+        self.scheduler.pushQueue()
+
+        for client in self.clients:
+            for n in range(self.clients[client]["nprocs"]):
+                if len(self.queue) == 0:
+                    return
+
+                if self.clients[client]["running"][n] is None:
+                    run = self.queue.pop(0)
+
+                    data = {"command":"run","runs":[(n,run)]}
+                    message = dill.dumps(data)
+                    message += b"\r\n\r\n\r\n"
+
+                    #print("Server message length:",len(message))
+
+                    _,wlist,_ = select.select([],[client],[])
+                    client.sendall(message)
+
+                    run.running = True
+                    self.clients[client]["running"][n] = run
 
         return
 
@@ -584,10 +725,17 @@ class ClusterScheduler:
         Waits until all processes in the process buffer are completed
         """
 
-        # Flush the process buffer
-        for p in self.running:
-            p.wait()
+        #print("Server command: wait")
+
+        for client in self.clients:
+            data = {"command":"wait"}
+            message = dill.dumps(data)
+            message += b"\r\n\r\n\r\n"
+
+            _,wlist,_ = select.select([],[client],[])
+            client.sendall(message)
         
+        self.scheduler.wait()
         self.refreshBuffer()
 
         return
@@ -597,16 +745,7 @@ class ClusterScheduler:
         Cleans up run output directory and reinserts run into the run queue
         """
 
-        # Remove Run output directory
-        if run.batch:
-            runDir = "%s/%s/%s" % (run.path,run.batch,run.tag)
-        else:
-            runDir = "%s/%s" % (run.path,run.tag)
-
-        shutil.rmtree(runDir)
-
-        # Reset Run process to None
-        run.process = None
+        #TODO
 
         self.prependRun(run)
         return
@@ -642,21 +781,32 @@ class ClusterScheduler:
         Otherwise returns a return code
         """
 
-        codes = [(run.process.poll() if run.process else None) for run in batch]
+        outputs = [run.output for run in batch]
 
-        if None in codes:
+        if None in outputs:
             return None
         else:
-            return np.sum(codes)
+            return 0
 
     def batchesQueuedAndRunning(self,batches):
         """
         Checks if any batches in a list has both queued and running/finished model runs
         """
 
-        queued = np.array([[run.process is None for run in batch] for batch in batches])
-        n_queued = np.sum(queued,axis=1)
-        return np.any((n_queued > 0) & (n_queued < queued.shape[1]))
+        running = np.array([[run.running for run in batch] for batch in batches],dtype=bool)
+        return np.any(np.any(running,axis=1) & ~np.all(running,axis=1))
+
+    def close(self):
+        for client in self.clients:
+            data = {"command":"close"}
+            message = dill.dumps(data)
+            message += b"\r\n\r\n\r\n"
+
+            _,wlist,_ = select.select([],[client],[])
+            client.sendall(message)
+
+        self.server.close()
+        return
 
 class Run:
     """
@@ -673,6 +823,7 @@ class Run:
 
         self.process = None
         self.output = None
+        self.running = False
 
         return
 

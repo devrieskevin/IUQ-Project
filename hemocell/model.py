@@ -122,15 +122,15 @@ def measureEI(outputpath):
         Z = pos[:, 2]
     else:
         print("RBC discarded by HemoCell in %s, returning dummy value" % datapath)
-        return np.array([-100, 0.0])
+        return -100, 0.0
     
     A, B, elongation_index = EL.elongation_index(X, Y)
 
     if np.isnan(elongation_index):
         print("RBC broke HemoCell in %s, returning dummy value" % datapath)
-        return np.array([-100, 0.0])
+        return -100, 0.0
 
-    return np.array([elongation_index, 0.0])
+    return elongation_index, 0.0
     
 def measureEI_full(outputpath):
     configpath = "%s/config.xml" % outputpath

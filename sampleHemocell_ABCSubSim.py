@@ -116,6 +116,7 @@ if __name__ == "__main__":
                                                     logstep=1000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
         else:
             ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
+            ABCSubSim_sampler.runscheduler.running = [None for n in range(ABCSubSim_sampler.runscheduler.nprocs)]
     else:
         if not checkpointed:
             ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax), 

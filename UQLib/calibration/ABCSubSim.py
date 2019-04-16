@@ -148,7 +148,7 @@ class ABCSubSim:
         self.qoi = np.empty((n_samples,self.y.shape[0]))
         self.c_err = np.empty((n_samples,self.y.shape[0]))
         
-        if self.model_type == "external":
+        if self.model_type in ["external","external_MPI"]:
             self.initialized = np.zeros(n_samples,dtype=bool)
         
             path = "stage_%i" % (self.stage)
@@ -164,20 +164,8 @@ class ABCSubSim:
                     if self.initialized[n] or self.runscheduler.pollBatch(batch) is None:
                         continue
 
-                    failed = False
                     for m,run in enumerate(batch):
-                        outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
-                        measurement = self.measure(outDir)
-                        
-                        if measurement is not None:
-                            self.qoi[n,m], self.c_err[n,m] = measurement
-                        else:
-                            print("Simulation in %s failed, requeued" % outDir)
-                            self.runscheduler.requeueRun(run)
-                            failed = True
-
-                    if failed:
-                        continue
+                        self.qoi[n,m], self.c_err[n,m] = run.output
 
                     self.initialized[n] = True
 
@@ -237,7 +225,7 @@ class ABCSubSim:
                 # Set new candidate in the chain and add to the run queue
                 self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
             
-                if self.model_type == "external":
+                if self.model_type in ["external","external_MPI"]:
                     path = "stage_%i" % self.stage
                     self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),
                                                  self.var_dicts,self.param_dicts[n],path,self.measure)
@@ -262,28 +250,16 @@ class ABCSubSim:
     def advance_MMA(self):
         for n in range(self.sample_min,self.sample_max):
             if self.counter[n] < self.invP0:
-                if self.model_type == "external" and self.runscheduler.pollBatch(self.chains[n]) is None:
+                if self.model_type in ["external","external_MPI"] and self.runscheduler.pollBatch(self.chains[n]) is None:
                     continue
                 
                 # Measure Quantity of interest
                 candidate_qoi = np.empty(self.y.shape[0])
                 c_err = np.empty(self.y.shape[0])
                 
-                if self.model_type == "external":
-                    failed = False
+                if self.model_type in ["external","external_MPI"]:
                     for m,run in enumerate(self.chains[n]):
-                        outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
-                        measurement = self.measure(outDir)
-                        
-                        if measurement is not None:
-                            candidate_qoi[m], c_err[m] = measurement
-                        else:
-                            print("Simulation in %s failed, requeued" % outDir)
-                            self.runscheduler.requeueRun(run)
-                            failed = True
-
-                    if failed:
-                        continue
+                        candidate_qoi[m], c_err[m] = run.output
                 
                 elif self.model_type == "python":
                     params = dict(self.param_dicts[n])
@@ -378,7 +354,7 @@ class ABCSubSim:
                 self.advance_MMA()
 
                 if self.chain_sum >= self.lognext:
-                    if self.model_type == "external":
+                    if self.model_type in ["external","external_MPI"]:
                         while self.runscheduler.batchesQueuedAndRunning(self.chains[self.sample_min:self.sample_max]):
                             self.runscheduler.pushNext()
                             time.sleep(self.sleep_time)
@@ -389,7 +365,7 @@ class ABCSubSim:
                     self.lognext = (self.chain_sum // self.logstep + 1) * self.logstep
                     self.save_state()
 
-                if self.model_type == "external":
+                if self.model_type in ["external","external_MPI"]:
                     self.runscheduler.pushQueue()
                     time.sleep(self.sleep_time)
    

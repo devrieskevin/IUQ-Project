@@ -127,14 +127,18 @@ class TMCMC():
             
             self.setup = problem["setup"]
             self.measure = problem["measure"]
-        elif self.model_type == "external_MPI":            
+        elif self.model_type == "external_cluster":            
             # Initialize model run scheduler
-            self.runscheduler = scheduler.MPI_Scheduler(sleep_time=sleep_time)
+            self.runscheduler = scheduler.ClusterScheduler(nprocs=nprocs, sleep_time=sleep_time)
 
             self.sleep_time = sleep_time
             
             self.setup = problem["setup"]
             self.measure = problem["measure"]
+
+            # Initialize the server and listen for connection requests
+            self.runscheduler.server_bind()
+            self.runscheduler.server_listen()
         elif self.model_type == "python":
             self.evaluate = problem["evaluate"]
         else:
@@ -174,6 +178,15 @@ class TMCMC():
 
     def save_state(self):
         if self.logpath:
+            if self.model_type == "external_cluster":
+                # Store cluster variables to local
+                server = self.runscheduler.server
+                clients = self.runscheduler.clients
+
+                # Reset cluster variables for logfile
+                self.runscheduler.server = None
+                self.runscheduler.clients = {}
+
             # Save the state of the RNG for reproducibility
             self.rng_state = np.random.get_state()
 
@@ -181,6 +194,11 @@ class TMCMC():
                 dill.dump(self,f)
 
             shutil.copy2("TMCMC_log.pkl", self.logpath)
+
+            if self.model_type == "external_cluster":
+                # Restore cluster variables from local
+                self.runscheduler.server = server
+                self.runscheduler.clients = clients
 
         return
 
@@ -199,7 +217,7 @@ class TMCMC():
         self.qoi = np.empty((n_samples,self.y.shape[0]))
         self.c_err = np.empty((n_samples,self.y.shape[0]))
         
-        if self.model_type in ["external","external_MPI"]:
+        if self.model_type in ["external","external_cluster"]:
             self.initialized = np.zeros(n_samples,dtype=bool)
             
             path = "stage_%i" % (self.stage)
@@ -215,23 +233,8 @@ class TMCMC():
                     if self.initialized[n] or self.runscheduler.pollBatch(batch) is None:
                         continue
 
-                    failed = False
                     for m,run in enumerate(batch):
-                        if self.model_type == "external":
-                            outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
-                            measurement = self.measure(outDir)
-                        elif self.model_type == "external_MPI":
-                            measurement = run.output
-                        
-                        if measurement is not None:
-                            self.qoi[n,m], self.c_err[n,m] = measurement
-                        else:
-                            print("Simulation in %s failed, requeued" % outDir)
-                            self.runscheduler.requeueRun(run)
-                            failed = True
-
-                    if failed:
-                        continue
+                        self.qoi[n,m], self.c_err[n,m] = run.output
 
                     self.initialized[n] = True
 
@@ -286,31 +289,16 @@ class TMCMC():
     def advance_MH(self):
         for n in range(self.leaders.shape[0]):
             if self.counter[n] < self.chain_lengths[n]:
-                if self.model_type == "external" and self.runscheduler.pollBatch(self.chains[n]) is None:
+                if self.model_type in ["external","external_cluster"] and self.runscheduler.pollBatch(self.chains[n]) is None:
                     continue
                 
                 # Measure Quantity of interest
                 candidate_qoi = np.empty(self.y.shape[0])
                 c_err = np.empty(self.y.shape[0])
                 
-                if self.model_type in ["external","external_MPI"]:
-                    failed = False
+                if self.model_type in ["external","external_cluster"]:
                     for m,run in enumerate(self.chains[n]):
-                        if self.model_type == "external":
-                            outDir = "%s/%s/%s" % ("stage_%i" % self.stage,run.batch,run.tag)
-                            measurement = self.measure(outDir)
-                        elif self.model_type == "external_MPI":
-                            measurement = run.output
-                             
-                        if measurement is not None:
-                            candidate_qoi[m], c_err[m] = measurement
-                        else:
-                            print("Simulation in %s failed, requeued" % outDir)
-                            self.runscheduler.requeueRun(run)
-                            failed = True
-
-                    if failed:
-                        continue
+                        candidate_qoi[m], c_err[m] = run.output
                 
                 elif self.model_type == "python":
                     params = dict(self.param_dicts[n])
@@ -358,7 +346,7 @@ class TMCMC():
                     # Set new candidate in the chain and add to the run queue
                     self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
                     
-                    if self.model_type in ["external","external_MPI"]:
+                    if self.model_type in ["external","external_cluster"]:
                         path = "stage_%i" % (self.stage)
                         self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % 
                                                      (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure)
@@ -391,7 +379,7 @@ class TMCMC():
             self.param_dicts = [{self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))} 
                                 for n in range(self.candidates.shape[0])]
         
-            if self.model_type in ["external","external_MPI"]:
+            if self.model_type in ["external","external_cluster"]:
                 path = "stage_%i" % (self.stage)
                 self.chains = [createBatch(self.setup,"chain_%i_batch_%i" % 
                                            (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure) 
@@ -405,7 +393,7 @@ class TMCMC():
             self.advance_MH()
 
             if self.chain_sum >= self.lognext:
-                if self.model_type in ["external","external_MPI"]:
+                if self.model_type in ["external","external_cluster"]:
                     while self.runscheduler.batchesQueuedAndRunning(self.chains):
                         self.runscheduler.pushNext()
                         time.sleep(self.sleep_time)
@@ -416,7 +404,7 @@ class TMCMC():
                 self.lognext = (self.chain_sum // self.logstep + 1) * self.logstep
                 self.save_state()
 
-            if self.model_type in ["external","external_MPI"]:
+            if self.model_type in ["external","external_cluster"]:
                 self.runscheduler.pushQueue()
                 time.sleep(self.sleep_time)
 
@@ -435,6 +423,9 @@ class TMCMC():
 
             if self.model_type == "external_MPI":
                 self.runscheduler.set_MPI_variables()
+
+            if self.model_type == "external_cluster":
+                self.runscheduler.reset_server()
         else:
             self.initialize(n_samples)
             self.save_state()
@@ -451,8 +442,11 @@ class TMCMC():
             
         print("Sampling finished :)")
 
-        if model_type == "external_MPI":
+        if self.model_type == "external_MPI":
             self.runscheduler.finalize()
+
+        if self.model_type == "external_cluster":
+            self.runscheduler.close()
 
         df = pd.DataFrame(data=self.samples,columns=self.model_params+self.error_params)
         df["likelihood"] = self.likelihoods
