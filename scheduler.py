@@ -80,7 +80,7 @@ class ModelScheduler:
                 else:
                     outpath = "%s/%s" % (self.running[n].path,self.running[n].tag)
 
-                self.running[n].output = self.running[n].measure(outpath)
+                self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
 
                 if self.running[n].output is None:
                     print("Return code:",self.running[n].process.returncode)
@@ -163,20 +163,20 @@ class ModelScheduler:
             else:
                 outpath = "%s/%s" % (self.running[n].path,self.running[n].tag)
 
-            self.running[n].output = self.running[n].measure(outpath)
+            self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
             while self.running[n].output is None:
                 print("Task failed in process %i, restarting task" % n)
                 shutil.rmtree(outpath)
                 p = self.run(self.running[n])
                 self.running[n].process = p
                 self.running[n].process.wait()
-                self.running[n].output = self.running[n].measure(outpath)
+                self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
 
             self.running[n] = None
 
         return
 
-    def requeueRun(self, run):
+    def requeueRun(self,run):
         """
         Cleans up run output directory and reinserts run into the run queue
         """
@@ -195,7 +195,7 @@ class ModelScheduler:
         self.prependRun(run)
         return
 
-    def enqueue(self, run):
+    def enqueue(self,run):
         """
         Adds a Run to the run queue
         """
@@ -203,12 +203,20 @@ class ModelScheduler:
         self.queue.append(run)
         return
 
-    def prependRun(self, run):
+    def prependRun(self,run):
         """
         Prepends a Run to the run queue
         """
         
         self.queue = [run] + self.queue
+        return
+
+    def prependBatch(self,batch):
+        """
+        Prepends a batch to the run queue
+        """
+
+        self.queue = batch + self.queue
         return
 
     def enqueueBatch(self,batch):
@@ -325,7 +333,7 @@ class MPI_Scheduler:
                     else:
                         outpath = "%s/%s" % (self.running[n].path,self.running[n].tag)
 
-                    self.running[n].output = self.running[n].measure(outpath)
+                    self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
 
                     if self.running[n].output is None:
                         print("Return code:",self.running[n].process.returncode)
@@ -419,7 +427,7 @@ class MPI_Scheduler:
                 else:
                     outpath = "%s/%s" % (self.running[n].path,self.running[n].tag)
 
-                self.running[n].output = self.running[n].measure(outpath)
+                self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
                 while self.running[n].output is None:
                     print("Task failed in worker %i, restarting task" % n)
                     shutil.rmtree(outpath)
@@ -764,6 +772,14 @@ class ClusterScheduler:
         """
         
         self.queue = [run] + self.queue
+        return
+
+    def prependBatch(self,batch):
+        """
+        Prepends a batch to the run queue
+        """
+
+        self.queue = batch + self.queue
         return
 
     def enqueueBatch(self,batch):

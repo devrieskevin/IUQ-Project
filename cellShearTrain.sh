@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH -N 3
+#SBATCH -N 5
 #SBATCH -t 5-00:00:00
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=kevin.devries@student.uva.nl
 
-N=500
+N=1000
 TMAX=30000
 VISC=1
 IMIN=3
@@ -20,7 +20,7 @@ date
 cp -r $HOME/IUQ-Project/* $TMPDIR
 cd $TMPDIR
 
-python sampleHemocell_ABCSubSim.py --enableInteriorViscosity $VISC --n_samples $N --tmax $TMAX --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
+python sampleHemocell_train.py --enableInteriorViscosity $VISC --n_samples $N --tmax $TMAX --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
 
 sleep 15
 
@@ -40,11 +40,11 @@ done
 wait
 
 if [[ $VISC == 1 ]]; then
-    cp  $TMPDIR/ABCSubSim_hemocell_qoi_visc_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
-    cp  $TMPDIR/ABCSubSim_hemocell_samples_visc_${IMIN}_${IMAX}_tmax_${TMAX}.csv $HOME/results
+    cp  $TMPDIR/train_hemocell_samples_visc_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
+    cp  $TMPDIR/train_hemocell_qoi_visc_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
 else
-    cp  $TMPDIR/ABCSubSim_hemocell_qoi_normal_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
-    cp  $TMPDIR/ABCSubSim_hemocell_samples_normal_${IMIN}_${IMAX}_tmax_${TMAX}.csv $HOME/results
+    cp  $TMPDIR/train_hemocell_samples_normal_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
+    cp  $TMPDIR/train_hemocell_qoi_normal_${IMIN}_${IMAX}_tmax_${TMAX}.npy $HOME/results
 fi
 
 echo "Ending script"

@@ -18,11 +18,11 @@ from lxml import etree
 from lisa_config import *
 
 # Set seed for reproducibility
-np.random.seed(77777)
+np.random.seed(666777)
 
 def model_prior(sample,enableInteriorViscosity):
     kLink_prior = uniform.pdf(sample[0],15.0,285.0)
-    kBend_prior = uniform.pdf(sample[1],80.0,220.0)
+    kBend_prior = uniform.pdf(sample[1],80.0,320.0)
     
     if enableInteriorViscosity:
         viscosityRatio_prior = uniform.pdf(sample[2],1.0,49.0)
@@ -32,7 +32,7 @@ def model_prior(sample,enableInteriorViscosity):
 
 def model_sampler(n_samples,enableInteriorViscosity):
     kLink_samples = np.random.uniform(15.0,300.0,n_samples)
-    kBend_samples = np.random.uniform(80.0,300.0,n_samples)
+    kBend_samples = np.random.uniform(80.0,400.0,n_samples)
     
     if enableInteriorViscosity:
         viscosityRatio_samples = np.random.uniform(1.0,50.0,n_samples)
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     # Compute the shear rates
     shearrate = stress / (nuP * rhoP)
 
-    design_vals = np.row_stack(np.broadcast(shearrate,tmax,tmax,enableInteriorViscosity))
+    design_vals = np.column_stack(np.broadcast_arrays(shearrate,tmax,tmax,enableInteriorViscosity))
 
     # Map model errors to data samples
     error_mapping = ["err" for n in range(shearrate.shape[0])]
@@ -123,13 +123,12 @@ if __name__ == "__main__":
 
     if enableInteriorViscosity:
         if not checkpointed:
-            TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax),logstep=100,nprocs=nprocs)
+            TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax),logstep=2000,nprocs=nprocs)
         else:
             TMCMC_sampler = TMCMC.load_state("%s/TMCMC_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
-            TMCMC_sampler.runscheduler.running = [None for n in range(TMCMC_sampler.runscheduler.nprocs)]
     else:
         if not checkpointed:
-            TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax),logstep=100,nprocs=nprocs)
+            TMCMC_sampler = TMCMC.TMCMC(problem,logpath="%s/TMCMC_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax),logstep=2000,nprocs=nprocs)
         else:
             TMCMC_sampler = TMCMC.load_state("%s/TMCMC_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
 

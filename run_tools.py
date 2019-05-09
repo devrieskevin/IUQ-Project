@@ -4,7 +4,7 @@ import scheduler
 
 import numpy as np
 
-def createBatch(setup,tag,var_dicts,param_dict):
+def createBatch(setup,tag,var_dicts,param_dict,path,measure):
     """
     Returns a list of Run objects using the same batch name
     """
@@ -14,31 +14,27 @@ def createBatch(setup,tag,var_dicts,param_dict):
     for n in range(len(var_dicts)):
         dicts[n].update(var_dicts[n])
 
-    batch = [scheduler.Run(setup, "run_%i" % (n), dicts[n], batch=tag) for n in range(len(var_dicts))]
+    batch = [scheduler.Run(setup, "run_%i" % (n), dicts[n], path=path, measure=measure, batch=tag) for n in range(len(var_dicts))]
 
     return batch
 
-def pollBatch(batch):
-    """
-    Polls all runs in a batch
-    Returns None if any runs has not yet been completed
-    Otherwise returns a return code
-    """
-
-    codes = [(run.process.poll() if run.process else None) for run in batch]
-
-    if None in codes:
-        return None
-    else:
-        return np.sum(codes)
-
 def run_external(problem, samples, nprocs=1, sleep_time=0.2):
 
-    # Get base working directory
-    baseDir = os.getcwd()
-    
-    # Initialize model run scheduler
-    runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
+    model_type = problem.get("model_type",None)
+
+    if model_type == "external":    
+        # Initialize model run scheduler
+        runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
+    elif model_type == "external_cluster":
+        runscheduler = scheduler.ClusterScheduler(nprocs=nprocs,sleep_time=sleep_time)
+        
+        # Initialize the server and listen for connection requests
+        runscheduler.server_bind()
+        runscheduler.server_listen()
+        
+    else:
+        print("No valid model_type specified in problem.")
+        return None
     
     setup = problem["setup"]
     measure = problem["measure"]
@@ -47,7 +43,7 @@ def run_external(problem, samples, nprocs=1, sleep_time=0.2):
     params = problem["params"]
     design_vars = problem["design_vars"]
 
-    # Unpack experimental data and measurement errors
+    # Unpack design variable data
     x = np.array(problem["input_data"])
     
     if len(x.shape) < 2:
@@ -66,7 +62,9 @@ def run_external(problem, samples, nprocs=1, sleep_time=0.2):
     c_err = np.empty((samples.shape[0],x.shape[0]))
     
     evaluated = np.zeros(samples.shape[0],dtype=bool)
-    batches = [createBatch(setup, "batch_%i" % (n), var_dicts, param_dicts[n]) for n in range(samples.shape[0])]
+    
+    path = "model_output"
+    batches = [createBatch(setup, "batch_%i" % (n), var_dicts, param_dicts[n], path, measure) for n in range(samples.shape[0])]
 
     # Enqueue all sample batches
     for batch in batches:
@@ -75,26 +73,19 @@ def run_external(problem, samples, nprocs=1, sleep_time=0.2):
     # Run all batches and retrieve quantities of interest
     while not np.all(evaluated):
         for n,batch in enumerate(batches):
-            if evaluated[n] or pollBatch(batch) is None:
+            if evaluated[n] or runscheduler.pollBatch(batch) is None:
                 continue
 
-            failed = False
             for m,run in enumerate(batch):
-                outDir = "%s/%s/%s" % (baseDir,run.batch,run.tag)
-                measurement = measure(outDir)
-                
-                if measurement is not None:
-                    qoi[n,m], c_err[n,m] = measurement
-                else:
-                    print("Simulation in %s failed, requeued" % outDir)
-                    runscheduler.requeueRun(run)
-                    failed = True
+                qoi[n,m], c_err[n,m] = run.output
 
-            if not failed:
-                evaluated[n] = True
+            evaluated[n] = True
 
         runscheduler.pushQueue()
         time.sleep(sleep_time)
+    
+    if model_type == "external_cluster":
+        runscheduler.close()
     
     return qoi, c_err
     

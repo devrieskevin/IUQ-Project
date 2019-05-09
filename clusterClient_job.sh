@@ -4,6 +4,7 @@ NPROCS=16
 . /sara/sw/modules/module/init/bash
 source $HOME/.bash_profile > /dev/null
 
+rm -r /scratch/output_dir
 mkdir /scratch/output_dir
 
 cp -r $HOME/IUQ-Project/* /scratch/output_dir

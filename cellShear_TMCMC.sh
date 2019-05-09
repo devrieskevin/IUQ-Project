@@ -1,9 +1,11 @@
 #!/bin/bash
 #SBATCH -N 5
 #SBATCH -t 5-00:00:00
+#SBATCH --mail-type=BEGIN,END
+#SBATCH --mail-user=kevin.devries@student.uva.nl
 
 N=1000
-TMAX=30000
+TMAX=40000
 VISC=1
 IMIN=3
 IMAX=10
@@ -19,6 +21,8 @@ cp -r $HOME/IUQ-Project/* $TMPDIR
 cd $TMPDIR
 
 python sampleHemocell_TMCMC.py --enableInteriorViscosity $VISC --n_samples $N --tmax $TMAX --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
+
+sleep 15
 
 #Read the nodelist into a bash array
 readarray -td, node_list<<<"$(python nodelistToTuple.py ${SLURM_JOB_NODELIST})";

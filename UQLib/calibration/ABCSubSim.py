@@ -81,14 +81,23 @@ class ABCSubSim:
         
         # Unpack model functions according to model type
         if self.model_type == "external":
-            # Get base working directory
-            self.baseDir = os.getcwd()
-            
             # Initialize model run scheduler
             self.runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
             
             self.setup = problem["setup"]
             self.measure = problem["measure"]
+        elif self.model_type == "external_cluster":
+            # Initialize model run scheduler
+            self.runscheduler = scheduler.ClusterScheduler(nprocs=nprocs, sleep_time=sleep_time)
+
+            self.sleep_time = sleep_time
+            
+            self.setup = problem["setup"]
+            self.measure = problem["measure"]
+
+            # Initialize the server and listen for connection requests
+            self.runscheduler.server_bind()
+            self.runscheduler.server_listen()            
         elif self.model_type == "python":
             self.evaluate = problem["evaluate"]
         else:
@@ -125,6 +134,15 @@ class ABCSubSim:
 
     def save_state(self):
         if self.logpath:
+            if self.model_type == "external_cluster":
+                # Store cluster variables to local
+                server = self.runscheduler.server
+                clients = self.runscheduler.clients
+
+                # Reset cluster variables for logfile
+                self.runscheduler.server = None
+                self.runscheduler.clients = {}
+        
             # Save the state of the RNG for reproducibility
             self.rng_state = np.random.get_state()
 
@@ -132,6 +150,11 @@ class ABCSubSim:
                 dill.dump(self,f)
 
             shutil.copy2("ABCSubSim_log.pkl", self.logpath)
+
+            if self.model_type == "external_cluster":
+                # Restore cluster variables from local
+                self.runscheduler.server = server
+                self.runscheduler.clients = clients
 
         return
 
@@ -148,7 +171,7 @@ class ABCSubSim:
         self.qoi = np.empty((n_samples,self.y.shape[0]))
         self.c_err = np.empty((n_samples,self.y.shape[0]))
         
-        if self.model_type in ["external","external_MPI"]:
+        if self.model_type in ["external","external_cluster"]:
             self.initialized = np.zeros(n_samples,dtype=bool)
         
             path = "stage_%i" % (self.stage)
@@ -171,8 +194,6 @@ class ABCSubSim:
 
                 self.runscheduler.pushQueue()
                 time.sleep(self.sleep_time)
-
-            os.chdir(self.baseDir)
                     
         elif self.model_type == "python":
             for n in range(n_samples):
@@ -225,7 +246,7 @@ class ABCSubSim:
                 # Set new candidate in the chain and add to the run queue
                 self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
             
-                if self.model_type in ["external","external_MPI"]:
+                if self.model_type in ["external","external_cluster"]:
                     path = "stage_%i" % self.stage
                     self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % (n,self.counter[n]),
                                                  self.var_dicts,self.param_dicts[n],path,self.measure)
@@ -239,6 +260,7 @@ class ABCSubSim:
                 idx = n * self.invP0 + self.counter[n]
                 self.samples[idx] = self.leaders[n]
                 self.qoi[idx] = self.leader_qoi[n]
+                self.c_err[idx] = self.leader_c_err[n]
                 self.distances[idx] = self.leader_distances[n]
 
                 # Update chain counter
@@ -250,14 +272,14 @@ class ABCSubSim:
     def advance_MMA(self):
         for n in range(self.sample_min,self.sample_max):
             if self.counter[n] < self.invP0:
-                if self.model_type in ["external","external_MPI"] and self.runscheduler.pollBatch(self.chains[n]) is None:
+                if self.model_type in ["external","external_cluster"] and self.runscheduler.pollBatch(self.chains[n]) is None:
                     continue
                 
                 # Measure Quantity of interest
                 candidate_qoi = np.empty(self.y.shape[0])
                 c_err = np.empty(self.y.shape[0])
                 
-                if self.model_type in ["external","external_MPI"]:
+                if self.model_type in ["external","external_cluster"]:
                     for m,run in enumerate(self.chains[n]):
                         candidate_qoi[m], c_err[m] = run.output
                 
@@ -274,6 +296,7 @@ class ABCSubSim:
                     # Accept candidate as new leader
                     self.leaders[n] = self.candidates[n]
                     self.leader_qoi[n] = candidate_qoi
+                    self.leader_c_err[n] = c_err
                     self.leader_distances[n] = candidate_distance
                     
                     self.accepted += 1
@@ -282,6 +305,7 @@ class ABCSubSim:
                 idx = n * self.invP0 + self.counter[n]
                 self.samples[idx] = self.leaders[n]
                 self.qoi[idx] = self.leader_qoi[n]
+                self.c_err[idx] = self.leader_c_err[n]
                 self.distances[idx] = self.leader_distances[n]
 
                 # Update chain counter
@@ -300,6 +324,7 @@ class ABCSubSim:
             self.distances = self.distances[sort_indices]
             self.samples = self.samples[sort_indices]
             self.qoi = self.qoi[sort_indices]
+            self.c_err = self.c_err[sort_indices]
 
             # Compute current tolerance value
             self.eps = (self.distances[n_samples // self.invP0 - 1] + self.distances[n_samples // self.invP0]) / 2
@@ -308,12 +333,14 @@ class ABCSubSim:
             # Set samples with the smallest distances as leaders
             self.leaders = self.samples[:n_samples // self.invP0,:]
             self.leader_qoi = self.qoi[:n_samples // self.invP0,:]
+            self.leader_c_err = self.c_err[:n_samples // self.invP0,:]
             self.leader_distances = self.distances[:n_samples // self.invP0]
 
             # Permute leader samples for self-regulated MMA sampling
             permuted_indices = np.random.permutation(self.leaders.shape[0])
             self.leaders = self.leaders[permuted_indices]
             self.leader_qoi = self.leader_qoi[permuted_indices]
+            self.leader_c_err = self.leader_c_err[permuted_indices]
             self.leader_distances = self.leader_distances[permuted_indices]
 
             # Sample variance of leader samples
@@ -322,6 +349,7 @@ class ABCSubSim:
             # Set first samples of next stage to leaders
             self.samples[::self.invP0] = self.leaders
             self.qoi[::self.invP0] = self.leader_qoi
+            self.c_err[::self.invP0] = self.leader_c_err
             self.distances[::self.invP0] = self.leader_distances
 
             # Initialize chain counters
@@ -354,7 +382,7 @@ class ABCSubSim:
                 self.advance_MMA()
 
                 if self.chain_sum >= self.lognext:
-                    if self.model_type in ["external","external_MPI"]:
+                    if self.model_type in ["external","external_cluster"]:
                         while self.runscheduler.batchesQueuedAndRunning(self.chains[self.sample_min:self.sample_max]):
                             self.runscheduler.pushNext()
                             time.sleep(self.sleep_time)
@@ -365,7 +393,7 @@ class ABCSubSim:
                     self.lognext = (self.chain_sum // self.logstep + 1) * self.logstep
                     self.save_state()
 
-                if self.model_type in ["external","external_MPI"]:
+                if self.model_type in ["external","external_cluster"]:
                     self.runscheduler.pushQueue()
                     time.sleep(self.sleep_time)
    
@@ -397,7 +425,13 @@ class ABCSubSim:
         # Assert that (n_samples / invP0 / invPa) and invPa are both integers
         assert (n_samples // self.invP0 // self.invPa * self.invPa) == (n_samples // self.invP0)
 
-        if not checkpoint:
+        if checkpoint:
+            # Set back RNG state
+            np.random.set_state(self.rng_state)
+        
+            if self.model_type == "external_cluster":
+                self.runscheduler.reset_server()
+        else:
             self.initialize(n_samples)
             self.save_state()
         
@@ -413,254 +447,10 @@ class ABCSubSim:
 
         print("Sampling finished :)")
 
+        if self.model_type == "external_cluster":
+            self.runscheduler.close()
+
         df = pd.DataFrame(data=self.samples,columns=self.model_params)
         df["distance"] = self.distances
         
-        return df,self.qoi
-
-def sample(problem, n_samples, invP0=5, tol=0.1, max_stages=20, nprocs=1, sleep_time=0.2):
-    """
-    Approximate Bayesian Computation Sampler
-
-    DEPRECATED. USE THE ABCSubSim CLASS INSTEAD.
-    """
-
-    # Assert that (n_samples / invP0) and invP0 are both integers
-    assert (n_samples // invP0 * invP0) == n_samples
-
-    model_type = problem.get("model_type",None)
-    
-    # Unpack model functions according to model type
-    if model_type == "external":
-        # Get base working directory
-        baseDir = os.getcwd()
-        
-        # Initialize model run scheduler
-        runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
-        
-        setup = problem["setup"]
-        measure = problem["measure"]
-    elif model_type == "python":
-        evaluate = problem["evaluate"]
-    else:
-        print("No valid model_type specified in problem.")
-        return None
-
-    # Unpack parameter and design variable names
-    model_params = problem["model_params"] 
-    design_vars = problem["design_vars"]
-
-    # Unpack distance measure
-    distance = problem["distance"]
-
-    # Unpack experimental data and measurement errors
-    x = np.array(problem["input_data"])
-    
-    if len(x.shape) < 2:
-        x = x[:,None]
-    
-    y = np.array(problem["output_data"])
-    y_err = np.array(problem["data_errors"])
-
-    # Unpack prior functions and samplers
-    priors = problem["priors"]
-    samplers = problem["samplers"]
-
-    # Dictionary with design variables
-    var_dicts = [{design_vars[m]:x[n,m] for m in range(x.shape[1])} for n in range(x.shape[0])]
-
-    # Full prior function
-    #full_prior = lambda sample: np.prod([priors[n](sample[n]) for n in range(len(priors))])
-
-    ### INITIALIZATION ###
-
-    # Generate samples from the prior distribution
-    samples = np.array([samplers[n](n_samples) for n in range(len(samplers))]).T
-    
-    for n in range(samples.shape[0]):
-        if np.any(samples[n] > 5) or np.any(samples[n] < -5):
-            print(samples[n])
-    
-    print("Initializing...")
-
-    param_dicts = [{model_params[m]:samples[n,m] for m in range(len(model_params))} for n in range(n_samples)]
-    qoi = np.empty((n_samples,y.shape[0]))
-    c_err = np.empty((n_samples,y.shape[0]))
-    
-    if model_type == "external":
-        os.makedirs("stage_0")
-        os.chdir("stage_0")
-        
-        batches = [createBatch(setup, "batch_%i" % (n), var_dicts, param_dicts[n]) for n in range(n_samples)]
-
-        # Run model for all parameter sets
-        for batch in batches:
-            runscheduler.enqueueBatch(batch)
-
-        runscheduler.flushQueue()
-        runscheduler.wait()
-
-        # Retrieve quantities of interest from output
-        for n,batch in enumerate(batches):
-            for m,run in enumerate(batch):
-                qoi[n,m], c_err[n,m] = measure("%s/%s/%s/%s" % (baseDir,"stage_0",run.batch,run.tag))
-
-        os.chdir(baseDir)
-                
-    elif model_type == "python":
-        for n in range(n_samples):
-            params = dict(param_dicts[n])
-            for m in range(y.shape[0]):
-                params.update(var_dicts[m])
-                qoi[n,m], c_err[n,m] = evaluate(params)
-                
-    distances = np.array([distance(qoi[n],y) for n in range(n_samples)])
-    
-    for stage in range(1,max_stages+1):
-        print("Running stage %i..." % stage)
-
-        # Sort samples
-        sort_indices = np.argsort(distances)
-        distances = distances[sort_indices]
-        samples = samples[sort_indices]
-        qoi = qoi[sort_indices]
-
-        # Compute current tolerance value
-        eps = (distances[n_samples // invP0] + distances[n_samples // invP0 + 1]) / 2
-        print("Current tolerance value:", eps)
-
-        # Compute the variances for the proposal distributions of the candidate components
-        variances = 0.01 * np.ones(samples.shape[1])
-
-        # Set samples with the smallest distances as leaders
-        leaders = samples[:n_samples // invP0,:]
-        leader_qoi = qoi[:n_samples // invP0,:]
-        leader_distances = distances[:n_samples // invP0]
-
-        # Set first samples of next stage to leaders
-        samples[::invP0] = leaders
-        qoi[::invP0] = leader_qoi
-        distances[::invP0] = leader_distances
-
-        counter = np.ones(leaders.shape[0],dtype=int)
-
-        if model_type == "external":
-            os.makedirs("stage_%i" % stage)
-            os.chdir("stage_%i" % stage)
-
-        # Generate candidates and create batches per chain
-        candidates = np.empty(leaders.shape)
-        param_dicts = [{} for n in range(candidates.shape[0])]
-        chains = [[] for n in range(leaders.shape[0])]
-        for n in range(leaders.shape[0]):
-            # Preemptively accept or reject candidates before evaluating
-            while counter[n] < invP0:
-                # Generate new candidate
-                candidates[n] = generate_candidate(leaders[n],priors,variances)
-
-                if np.any(candidates[n] != leaders[n]):
-
-                    # Set new candidate in the chain and add to the run queue
-                    param_dicts[n] = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
-                 
-                    if model_type == "external":
-                        chains[n] = createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
-                        runscheduler.enqueueBatch(chains[n])
-                    break
-
-                else:
-                    # Set new leader as a new sample
-                    idx = n * invP0 + counter[n]
-                    samples[idx] = leaders[n]
-                    qoi[idx] = leader_qoi[n]
-                    distances[idx] = leader_distances[n]
-
-                    # Update chain counter
-                    counter[n] += 1
-        
-        if model_type == "external":
-            runscheduler.flushQueue()
-
-        while np.sum(counter) < n_samples:
-            for n in range(leaders.shape[0]):
-                if counter[n] < invP0:
-                    
-                    if model_type == "external" and pollBatch(chains[n]) is None:
-                        continue
-                    
-                    # Measure Quantity of interest
-                    candidate_qoi = np.empty(y.shape[0])
-                    c_err = np.empty(y.shape[0])
-                    
-                    if model_type == "external":
-                        for m,run in enumerate(chains[n]):
-                            candidate_qoi[m], c_err[m] = measure("%s/%s/%s/%s" % 
-                                                                 (baseDir,"stage_%i" % stage,run.batch,run.tag))
-                    
-                    elif model_type == "python":
-                        params = dict(param_dicts[n])
-                        for m in range(y.shape[0]):
-                            params.update(var_dicts[m])
-                            candidate_qoi[m], c_err[m] = evaluate(params)
-                                            
-                    # Compute candidate distance
-                    candidate_distance = distance(candidate_qoi,y)
-
-                    if candidate_distance < eps:
-                        # Accept candidate as new leader
-                        leaders[n] = candidates[n]
-                        leader_qoi[n] = candidate_qoi
-                        leader_distances[n] = candidate_distance
-
-                    # Set new leader as a new sample
-                    idx = n * invP0 + counter[n]
-                    samples[idx] = leaders[n]
-                    qoi[idx] = leader_qoi[n]
-                    distances[idx] = leader_distances[n]
-
-                    # Update chain counter
-                    counter[n] += 1
-
-                    # Generate new candidate if chain is not complete
-                    while counter[n] < invP0:
-                        # Generate new candidate
-                        candidates[n] = generate_candidate(leaders[n],priors,variances)
-
-                        if np.any(candidates[n] != leaders[n]):
-
-                            # Set new candidate in the chain and add to the run queue
-                            param_dicts[n] = {model_params[m]:candidates[n,m] for m in range(len(model_params))}
-                        
-                            if model_type == "external":
-                                chains[n] = createBatch(setup,"chain_%i_batch_%i" % (n,counter[n]),var_dicts,param_dicts[n])
-                                runscheduler.enqueueBatch(chains[n])
-
-                            break
-
-                        else:
-                            # Set new leader as a new sample
-                            idx = n * invP0 + counter[n]
-                            samples[idx] = leaders[n]
-                            qoi[idx] = leader_qoi[n]
-                            distances[idx] = leader_distances[n]
-
-                            # Update chain counter
-                            counter[n] += 1
-
-            if model_type == "external":
-                if runscheduler.queue:
-                    runscheduler.flushQueue()
-                else:
-                    runscheduler.wait()
-               
-        if model_type == "external":
-            os.chdir(baseDir)
-        
-        if eps <= tol:
-            print("Minimum tolerance value reached")
-            break    
-
-    df = pd.DataFrame(data=samples,columns=model_params)
-    df["distance"] = distances
-    
-    return df,qoi
+        return df,self.qoi,self.c_err

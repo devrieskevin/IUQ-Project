@@ -24,7 +24,7 @@ def distance(a,b):
 
 def model_priors(enableInteriorViscosity):
     kLink_prior = lambda sample: uniform.pdf(sample,15.0,285.0)
-    kBend_prior = lambda sample: uniform.pdf(sample,80.0,220.0)
+    kBend_prior = lambda sample: uniform.pdf(sample,80.0,320.0)
     viscosityRatio_prior = lambda sample: uniform.pdf(sample,1.0,49.0)
     
     if enableInteriorViscosity:
@@ -34,7 +34,7 @@ def model_priors(enableInteriorViscosity):
 
 def model_samplers(enableInteriorViscosity):
     kLink_sampler = lambda n_samples: np.random.uniform(15.0,300.0,n_samples)
-    kBend_sampler = lambda n_samples: np.random.uniform(80.0,300.0,n_samples)
+    kBend_sampler = lambda n_samples: np.random.uniform(80.0,400.0,n_samples)
     viscosityRatio_sampler = lambda n_samples: np.random.uniform(1.0,50.0,n_samples)
     
     if enableInteriorViscosity:
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # Compute the shear rates
     shearrate = stress / (nuP * rhoP)
 
-    design_vals = np.row_stack(np.broadcast(shearrate,tmax,tmax,enableInteriorViscosity))
+    design_vals = np.column_stack(np.broadcast_arrays(shearrate,tmax,tmax,enableInteriorViscosity))
 
     # Construct problem dict
     problem = {"model_type":model_type,
@@ -113,14 +113,14 @@ if __name__ == "__main__":
     if enableInteriorViscosity:
         if not checkpointed:
             ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax), 
-                                                    logstep=1000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
+                                                    logstep=2000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
         else:
             ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
             ABCSubSim_sampler.runscheduler.running = [None for n in range(ABCSubSim_sampler.runscheduler.nprocs)]
     else:
         if not checkpointed:
             ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax), 
-                                                    logstep=1000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
+                                                    logstep=2000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
         else:
             ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
 
