@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH -t 1-00:00:00
+#SBATCH -t 0-12:00:00
+#SBATCH --mail-type=BEGIN,END
+#SBATCH --mail-user=kevin.devries@student.uva.nl
 
-METHOD="TMCMC"
-TSOURCE=40000
-TMAX=100000
-TMEAS=2000
+TMAX=1000000
+TMEAS=500
 VISC=1
-IMIN=3
+IMIN=0
 IMAX=10
 
 cp -r $HOME/IUQ-Project/* $TMPDIR
@@ -16,7 +16,7 @@ cd $TMPDIR
 echo "Starting script"
 date
 
-python testConvergence.py --method $METHOD --tsource $TSOURCE --tmax $TMAX --tmeas $TMEAS --enableInteriorViscosity $VISC --imin $IMIN --imax $IMAX
+python testConvergence.py --tmax $TMAX --tmeas $TMEAS --enableInteriorViscosity $VISC --imin $IMIN --imax $IMAX
 
 if [[ $VISC == 1 ]]; then
     mv Convergence_output/ $HOME/results/conv_output_visc

@@ -89,7 +89,7 @@ def run_external(problem, samples, nprocs=1, sleep_time=0.2):
     
     return qoi, c_err
     
-def run_batch(problem, sample, tmax, tmeas, nprocs=1, sleep_time=0.2):
+def run_batch(problem, sample, nprocs=1, sleep_time=0.2):
 
     # Get base working directory
     baseDir = os.getcwd()
@@ -114,37 +114,27 @@ def run_batch(problem, sample, tmax, tmeas, nprocs=1, sleep_time=0.2):
     var_dicts = [{design_vars[m]:x[n,m] for m in range(x.shape[1])} for n in range(x.shape[0])]
     param_dict = {params[m]:sample[m] for m in range(len(params))}
     
-    # Add tmax and tmeas to the parameter dictionary
-    param_dict["tmax"] = tmax
-    param_dict["tmeas"] = tmeas
-
     print("Evaluating...")
+
+    tmax = param_dict["tmax"]
+    tmeas = param_dict["tmeas"]
 
     # Initialize output buffers
     qoi = np.empty((np.arange(tmeas,tmax+1,tmeas).shape[0],x.shape[0]))
     c_err = np.empty((np.arange(tmeas,tmax+1,tmeas).shape[0],x.shape[0]))
     
-    batch = createBatch(setup, "hemocell_batch", var_dicts, param_dict)
+    path = "model_output"
+    batch = createBatch(setup, "hemocell_batch", var_dicts, param_dict,path,measure)
     runscheduler.enqueueBatch(batch)
 
     # Run batch and retrieve quantities of interest
     evaluated = False
     while not evaluated:
-        if pollBatch(batch) is not None:
-            failed = False
-            for m,run in enumerate(batch):
-                outDir = "%s/%s/%s" % (baseDir,run.batch,run.tag)
-                measurement = measure(outDir)
-                
-                if measurement is not None:
-                    qoi[:,m], c_err[:,m] = measurement
-                else:
-                    print("Simulation in %s failed, requeued" % outDir)
-                    runscheduler.requeueRun(run)
-                    failed = True
+        if runscheduler.pollBatch(batch) is not None:
+            for m,run in enumerate(batch):                
+                qoi[:,m], c_err[:,m] = run.output
 
-            if not failed:
-                evaluated = True
+            evaluated = True
 
         runscheduler.pushQueue()
         time.sleep(sleep_time)

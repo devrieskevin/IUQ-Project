@@ -20,4 +20,4 @@ if __name__ == "__main__":
             else:
                 normal_nodes.append(first + elem)
 
-    print(*normal_nodes,sep=",")
+    print(*normal_nodes,sep=" ")

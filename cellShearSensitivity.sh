@@ -24,11 +24,14 @@ python sobol_hemocell.py --enableInteriorViscosity $VISC --n_samples $N --tmax $
 
 sleep 15
 
-#Read the nodelist into a bash array
-readarray -td, node_list<<<"$(python nodelistToTuple.py ${SLURM_JOB_NODELIST})";
+# Lisa
+#node_list="$(python nodelistToTuple.py ${SLURM_JOB_NODELIST})"
+
+# Cartesius
+node_list="$(nodeset -e $SLURM_JOB_NODELIST)"
 
 #Loop over the bash array to execute the program on each node in node_list.
-for node in ${node_list[@]}; do
+for node in ${node_list}; do
     if [[ $node != $SLURMD_NODENAME ]]; then
         echo "ssh to node $node"
         ssh $node "$HOME/IUQ-Project/clusterClient_job.sh $MAINNODE" &
