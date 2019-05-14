@@ -9,12 +9,7 @@ NPROCS=24
 
 source $HOME/.bash_profile > /dev/null
 
-rm -r /scratch/output_dir
-mkdir /scratch/output_dir
+cp -r $HOME/IUQ-Project/* "$TMPDIR"
+cd $TMPDIR
 
-cp -r $HOME/IUQ-Project/* /scratch/output_dir
-cd /scratch/output_dir
-
-python clusterClient.py --server_host $MAINNODE --nprocs $NPROCS
-
-rm -r /scratch/output_dir
+python3 clusterClient.py --server_host $MAINNODE --nprocs $NPROCS

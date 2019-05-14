@@ -14,7 +14,8 @@ import hemocell.model as hemocell
 from lxml import etree
 
 #from local_config import *
-from lisa_config import *
+#from lisa_config import *
+from cartesius_config import *
 
 # Set seed for reproducibility
 np.random.seed(77777)

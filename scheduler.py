@@ -84,7 +84,7 @@ class ModelScheduler:
 
                 if self.running[n].output is None:
                     print("Return code:",self.running[n].process.returncode)
-                    print("Task failed in process %i, restarting task" % n)
+                    print("Task failed in %s, restarting task" % outpath)
                     shutil.rmtree(outpath)
                     p = self.run(self.running[n])
                     self.running[n].process = p
@@ -165,7 +165,7 @@ class ModelScheduler:
 
             self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
             while self.running[n].output is None:
-                print("Task failed in process %i, restarting task" % n)
+                print("Task failed in %s, restarting task" % outpath)
                 shutil.rmtree(outpath)
                 p = self.run(self.running[n])
                 self.running[n].process = p

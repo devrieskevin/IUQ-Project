@@ -1,15 +1,15 @@
 #!/bin/bash
 #SBATCH -N 5
-#SBATCH -t 5-00:00:00
+#SBATCH -t 0-00:05:00
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=kevin.devries@student.uva.nl
 
 N=1000
-TMAX=40000
+TMAX=30000
 VISC=1
-IMIN=3
-IMAX=10
-NPROCS=16
+IMIN=0
+IMAX=6
+NPROCS=24
 MODEL_TYPE="external_cluster"
 
 MAINNODE="$(hostname -i)"

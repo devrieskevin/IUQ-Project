@@ -10,7 +10,8 @@ import dill
 import scheduler
 import hemocell.model as hemocell
 
-from lisa_config import *
+#from lisa_config import *
+from cartesius_config import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

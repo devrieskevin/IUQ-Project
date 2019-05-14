@@ -16,7 +16,8 @@ from lxml import etree
 from SALib.sample import saltelli
 
 #from local_config import *
-from lisa_config import *
+#from lisa_config import *
+from cartesius_config import *
 
 from run_tools import run_external
 

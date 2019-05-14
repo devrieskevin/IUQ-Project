@@ -131,11 +131,12 @@ def measureEI(outputpath,params):
 def measureEI_convergence(outputpath,params):
     tmax = int(params["tmax"] + 0.5)
     tmeas = int(params["tmeas"] + 0.5)
-    tconv = int(params["tconv"] + 0.5)
+    tgamma = params["tgamma"]
+    shearrate = params["shearrate"]
 
     # Get time steps to measure after convergence
     tvals = np.arange(0,tmax+1,tmeas)
-    tvals = tvals[tvals >= tconv]
+    tvals = tvals[tvals*0.5e-7*shearrate >= tgamma]
 
     datapath = "%s/tmp/hdf5/" % (outputpath)
 

@@ -7,9 +7,9 @@
 N=1000
 TMAX=30000
 VISC=1
-IMIN=3
-IMAX=9
-NPROCS=16
+IMIN=0
+IMAX=6
+NPROCS=24
 MODEL_TYPE="external_cluster"
 
 MAINNODE="$(hostname -i)"
