@@ -3,6 +3,7 @@ import shutil
 import sys
 import time
 import signal
+import tqdm
 
 import dill
 
@@ -214,13 +215,15 @@ class TMCMC():
         self.samples[:,len(self.model_params):] = self.error_sampler(n_samples)
 
         self.stage = 0
-        print("Initializing...")
+        print("Initializing...",flush=True)
 
         param_dicts = [{self.model_params[m]:self.samples[n,m] for m in range(len(self.model_params))} 
                        for n in range(n_samples)]
         
         self.qoi = np.empty((n_samples,self.y.shape[0]))
         self.c_err = np.empty((n_samples,self.y.shape[0]))
+        
+        self.pbar = tqdm.tqdm(total=n_samples)
         
         if self.model_type in ["external","external_cluster"]:
             self.initialized = np.zeros(n_samples,dtype=bool)
@@ -242,6 +245,7 @@ class TMCMC():
                         self.qoi[n,m], self.c_err[n,m] = run.output
 
                     self.initialized[n] = True
+                    self.pbar.update(1)
 
                 self.runscheduler.pushQueue()
                 time.sleep(self.sleep_time)
@@ -252,6 +256,8 @@ class TMCMC():
                 for m in range(self.y.shape[0]):
                     params.update(self.var_dicts[m])
                     self.qoi[n,m], self.c_err[n,m] = self.evaluate(params)
+                
+                self.pbar.update(1)
                     
         # Calculate likelihoods
         m_err_dicts = [{self.error_params[m]:self.samples[n,len(self.model_params) + m] 
@@ -262,6 +268,8 @@ class TMCMC():
 
         self.likelihoods = np.array([self.likelihood_function(self.qoi[n],self.y,self.y_err,self.c_err[n],m_err[n]) 
                                      for n in range(n_samples)])
+        
+        self.pbar.close()
         
         # Initialize chain counter
         self.counter = None
@@ -294,6 +302,42 @@ class TMCMC():
 
         # Proposal distribution covariance matrix
         self.cov_matrix = self.cov_scale**2 * np.sum(self.weights_norm[:,None,None] * centered_outer,axis=0)
+
+        return
+
+    def sample_new_candidate(self,n):
+        # Generate new candidate if chain is not complete
+        while self.counter[n] < self.chain_lengths[n]:
+            # Generate new candidate
+            self.candidates[n] = np.random.multivariate_normal(self.leaders[n],self.cov_matrix)
+
+            if self.full_prior(self.candidates[n]) == 0:
+                # Set leader by default and sample a new candidate
+
+                if self.counter[n] >= 0:
+                    idx = np.sum(self.chain_lengths[:n]) + self.counter[n]
+                    self.samples[idx] = self.leaders[n]
+                    self.qoi[idx] = self.leader_qoi[n]
+                    self.c_err[idx] = self.leader_c_err[n]
+                    self.likelihoods[idx] = self.leader_likelihoods[n]
+
+                # Update chain counters
+                self.counter[n] += 1
+                self.chain_sum += 1
+                self.pbar.update(1)
+
+            else:
+                # Set new candidate in the chain and add to the run queue
+                self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
+            
+                if self.model_type in ["external","external_cluster"]:
+                    path = "stage_%i" % (self.stage)
+                    self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % 
+                                                 (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure)
+                
+                    self.runscheduler.prependBatch(self.chains[n])
+
+                break
 
         return
 
@@ -351,38 +395,10 @@ class TMCMC():
                 # Update chain counters
                 self.counter[n] += 1
                 self.chain_sum += 1
+                self.pbar.update(1)
 
-                # Generate new candidate if chain is not complete
-                while self.counter[n] < self.chain_lengths[n]:
-                    # Generate new candidate
-                    self.candidates[n] = np.random.multivariate_normal(self.leaders[n],self.cov_matrix)
-
-                    if self.full_prior(self.candidates[n]) == 0:
-                        # Set leader by default and sample a new candidate
-
-                        if self.counter[n] >= 0:
-                            idx = np.sum(self.chain_lengths[:n]) + self.counter[n]
-                            self.samples[idx] = self.leaders[n]
-                            self.qoi[idx] = self.leader_qoi[n]
-                            self.c_err[idx] = self.leader_c_err[n]
-                            self.likelihoods[idx] = self.leader_likelihoods[n]
-
-                        # Update chain counters
-                        self.counter[n] += 1
-                        self.chain_sum += 1
-
-                    else:
-                        # Set new candidate in the chain and add to the run queue
-                        self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
-                    
-                        if self.model_type in ["external","external_cluster"]:
-                            path = "stage_%i" % (self.stage)
-                            self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % 
-                                                         (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure)
-                        
-                            self.runscheduler.prependBatch(self.chains[n])
-
-                        break
+                # Sample and queue a new candidate
+                self.sample_new_candidate(n)
 
         return
 
@@ -430,38 +446,23 @@ class TMCMC():
             self.leader_likelihoods = leader_likelihoods
             self.leader_priors = np.array([self.full_prior(self.leaders[n]) for n in range(self.leaders.shape[0])])
 
-            #print("Min likelihoods:",self.likelihoods[sample_indices].min())
-            #print("Max likelihoods:",self.likelihoods[sample_indices].max())
-            #print("Mean likelihoods:",self.likelihoods[sample_indices].mean())
-            #print("Num higher likelihoods:",np.sum(self.likelihoods[sample_indices] > 1))
-            print("Maximum chain length:",self.chain_lengths.max())
-            #print("Likelihood max chain:",self.leader_likelihoods[self.chain_lengths.argmax()])
-            
-            #if self.p == 1:
-            #    print("Leader data:")
-            #    print(np.column_stack([self.weights_norm[sample_indices][unique_indices][length_sort],
-            #                           self.chain_lengths,self.leader_likelihoods]))
+            print("Maximum chain length:",self.chain_lengths.max(),flush=True)
             
             # Initialize counter
             self.counter = np.zeros(self.chain_lengths.shape,dtype=int) - self.nburn
             self.chain_sum = -self.chain_lengths.shape[0] * self.nburn
 
-            # Generate candidates and create batches per chain
-            self.candidates = np.array([np.random.multivariate_normal(self.leaders[n],self.cov_matrix) 
-                                        for n in range(self.leaders.shape[0])])
+            # Initialize progressbar
+            self.pbar = tqdm.tqdm(total=n_samples+self.nburn*self.counter.size)
+            
+            # Initialize candidates
+            self.candidates = np.empty(self.leaders.shape)
+            self.param_dicts = [{} for n in range(self.candidates.shape[0])]
+            self.chains = [[] for n in range(self.candidates.shape[0])]
 
-            self.param_dicts = [{self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))} 
-                                for n in range(self.candidates.shape[0])]
-        
-            if self.model_type in ["external","external_cluster"]:
-                path = "stage_%i" % (self.stage)
-                self.chains = [createBatch(self.setup,"chain_%i_batch_%i" % 
-                                           (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure) 
-                               for n in range(self.leaders.shape[0])]
-
-                # Schedule chain runs
-                for chain in self.chains:
-                    self.runscheduler.enqueueBatch(chain)
+            for n in reversed(range(self.leaders.shape[0])):
+                self.sample_new_candidate(n)
+            
                             
         while self.chain_sum < n_samples:
             self.advance_MH()
@@ -485,6 +486,7 @@ class TMCMC():
         print("Current max likelihood:",np.max(self.likelihoods))
         
         self.counter = None
+        self.pbar.close()
         self.lognext = self.logstep
         self.stage += 1
 
@@ -524,5 +526,6 @@ class TMCMC():
 
         df = pd.DataFrame(data=self.samples,columns=self.model_params+self.error_params)
         df["likelihood"] = self.likelihoods
+        df["prior"] = np.array([self.full_prior(self.samples[n]) for n in range(self.samples.shape[0])])
 
         return df,self.qoi,self.c_err

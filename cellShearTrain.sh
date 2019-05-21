@@ -8,7 +8,7 @@ N=500
 VISC=1
 IMIN=0
 IMAX=6
-NPROCS=24
+NPROCS=16
 MODEL_TYPE="external_cluster"
 
 MAINNODE="$(hostname -i)"
@@ -24,10 +24,10 @@ python3 sampleHemocell_train.py --enableInteriorViscosity $VISC --n_samples $N -
 sleep 15
 
 # Lisa
-#node_list="$(python nodelistToTuple.py ${SLURM_JOB_NODELIST})"
+node_list="$(python nodelistToTuple.py ${SLURM_JOB_NODELIST})"
 
 # Cartesius
-node_list="$(nodeset -e $SLURM_JOB_NODELIST)"
+#node_list="$(nodeset -e $SLURM_JOB_NODELIST)"
 
 #Loop over the bash array to execute the program on each node in node_list.
 for node in ${node_list}; do
@@ -44,9 +44,11 @@ wait
 if [[ $VISC == 1 ]]; then
     cp  $TMPDIR/train_hemocell_samples_visc_${IMIN}_${IMAX}.npy $HOME/results
     cp  $TMPDIR/train_hemocell_qoi_visc_${IMIN}_${IMAX}.npy $HOME/results
+    cp  $TMPDIR/train_hemocell_c_err_visc_${IMIN}_${IMAX}.npy $HOME/results
 else
     cp  $TMPDIR/train_hemocell_samples_normal_${IMIN}_${IMAX}.npy $HOME/results
     cp  $TMPDIR/train_hemocell_qoi_normal_${IMIN}_${IMAX}.npy $HOME/results
+    cp  $TMPDIR/train_hemocell_c_err_normal_${IMIN}_${IMAX}.npy $HOME/results
 fi
 
 echo "Ending script"

@@ -369,7 +369,7 @@ class ABCSubSim:
             # Initialize candidates
             self.candidates = np.empty(self.leaders.shape)
             self.param_dicts = [{} for n in range(self.candidates.shape[0])]
-            self.chains = [[] for n in range(self.leaders.shape[0])]
+            self.chains = [[] for n in range(self.candidates.shape[0])]
 
         while self.group < self.invPa:
             # Calculate variances, and sample and enqueue initial candidates

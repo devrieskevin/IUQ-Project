@@ -14,8 +14,8 @@ import hemocell.model as hemocell
 from lxml import etree
 
 #from local_config import *
-#from lisa_config import *
-from cartesius_config import *
+from lisa_config import *
+#from cartesius_config import *
 
 # Set seed for reproducibility
 np.random.seed(77777)
@@ -24,9 +24,9 @@ def distance(a,b):
     return np.sqrt(np.mean((a-b)**2))
 
 def model_priors(enableInteriorViscosity):
-    kLink_prior = lambda sample: uniform.pdf(sample,15.0,285.0)
-    kBend_prior = lambda sample: uniform.pdf(sample,80.0,320.0)
-    viscosityRatio_prior = lambda sample: uniform.pdf(sample,1.0,49.0)
+    kLink_prior = lambda sample: uniform.pdf(sample,10.0,290.0)
+    kBend_prior = lambda sample: uniform.pdf(sample,50.0,350.0)
+    viscosityRatio_prior = lambda sample: uniform.pdf(sample,1.0,14.0)
     
     if enableInteriorViscosity:
         return [kLink_prior,kBend_prior,viscosityRatio_prior]
@@ -34,9 +34,9 @@ def model_priors(enableInteriorViscosity):
         return [kLink_prior,kBend_prior]
 
 def model_samplers(enableInteriorViscosity):
-    kLink_sampler = lambda n_samples: np.random.uniform(15.0,300.0,n_samples)
-    kBend_sampler = lambda n_samples: np.random.uniform(80.0,400.0,n_samples)
-    viscosityRatio_sampler = lambda n_samples: np.random.uniform(1.0,50.0,n_samples)
+    kLink_sampler = lambda n_samples: np.random.uniform(10.0,300.0,n_samples)
+    kBend_sampler = lambda n_samples: np.random.uniform(50.0,400.0,n_samples)
+    viscosityRatio_sampler = lambda n_samples: np.random.uniform(1.0,15.0,n_samples)
     
     if enableInteriorViscosity:
         return [kLink_sampler,kBend_sampler,viscosityRatio_sampler]
@@ -48,7 +48,6 @@ if __name__ == "__main__":
 
     # Add arguments
     parser.add_argument("--n_samples",dest="n_samples",type=int,default=100)
-    parser.add_argument("--tmax",type=int,required=True)
     parser.add_argument("--enableInteriorViscosity",type=int,default=0)
     parser.add_argument("--checkpointed",dest="checkpointed",action="store_true",default=False)
     parser.add_argument("--imin",dest="imin",type=int,default=3)
@@ -60,7 +59,6 @@ if __name__ == "__main__":
 
     # Set design variable argument values
     n_samples = args.n_samples
-    tmax = args.tmax
     enableInteriorViscosity = args.enableInteriorViscosity
     checkpointed = args.checkpointed
     imin = args.imin
@@ -74,7 +72,7 @@ if __name__ == "__main__":
     else:
         model_params = ["kLink","kBend"]
 
-    design_vars = ["shearrate","tmax","tmeas","enableInteriorViscosity"]
+    design_vars = ["shearrate","tmax","tmeas","tgamma","enableInteriorViscosity"]
     
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
@@ -91,12 +89,18 @@ if __name__ == "__main__":
     # Compute the shear rates
     shearrate = stress / (nuP * rhoP)
 
-    design_vals = np.column_stack(np.broadcast_arrays(shearrate,tmax,tmax,enableInteriorViscosity))
+    # Determine the number of timesteps and measurements
+    tgamma = 7.5
+    tconv = np.array([int(tgamma / (0.5e-7 * gamma)) for gamma in shearrate])
+    tmax = np.ceil(tconv * 1.25)
+    tmeas = 2000
+
+    design_vals = np.column_stack(np.broadcast_arrays(shearrate,tmax,tmeas,tgamma,enableInteriorViscosity))
 
     # Construct problem dict
     problem = {"model_type":model_type,
                "setup":(lambda params: hemocell.setup(modelpath,params)),
-               "measure":hemocell.measureEI,
+               "measure":hemocell.measureEI_convergence,
                "distance":distance,
                "model_params":model_params,
                "design_vars":design_vars,
@@ -113,19 +117,18 @@ if __name__ == "__main__":
     
     if enableInteriorViscosity:
         if not checkpointed:
-            ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax), 
+            ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_visc_%i_%i_log.pkl" % (outputpath,imin,imax), 
                                                     logstep=2000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
         else:
-            ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_visc_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
-            ABCSubSim_sampler.runscheduler.running = [None for n in range(ABCSubSim_sampler.runscheduler.nprocs)]
+            ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_visc_%i_%i_log.pkl" % (outputpath,imin,imax))
     else:
         if not checkpointed:
-            ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax), 
+            ABCSubSim_sampler = ABCSubSim.ABCSubSim(problem,logpath="%s/ABCSubSim_Hemocell_normal_%i_%i_log.pkl" % (outputpath,imin,imax), 
                                                     logstep=2000, tol=0.02, invPa=10, max_stages=5, nprocs=nprocs)
         else:
-            ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_normal_%i_%i_tmax_%i_log.pkl" % (outputpath,imin,imax,tmax))
+            ABCSubSim_sampler = ABCSubSim.load_state("%s/ABCSubSim_Hemocell_normal_%i_%i_log.pkl" % (outputpath,imin,imax))
 
-    df,qoi = ABCSubSim_sampler.sample(n_samples,checkpoint=checkpointed)
+    df,qoi,c_err = ABCSubSim_sampler.sample(n_samples,checkpoint=checkpointed)
     
     os.chdir("..")
 
@@ -133,8 +136,10 @@ if __name__ == "__main__":
     #shutil.rmtree("./ABCSubSim_output")
     
     if enableInteriorViscosity:
-        df.to_csv("ABCSubSim_hemocell_samples_visc_%i_%i_tmax_%i.csv" % (imin,imax,tmax),sep=";",index=False)
-        np.save("ABCSubSim_hemocell_qoi_visc_%i_%i_tmax_%i.npy" % (imin,imax,tmax),qoi)
+        df.to_csv("ABCSubSim_hemocell_samples_visc_%i_%i.csv" % (imin,imax),sep=";",index=False)
+        np.save("ABCSubSim_hemocell_qoi_visc_%i_%i.npy" % (imin,imax),qoi)
+        np.save("ABCSubSim_hemocell_c_err_visc_%i_%i.npy" % (imin,imax),c_err)
     else:
-        df.to_csv("ABCSubSim_hemocell_samples_normal_%i_%i_tmax_%i.csv" % (imin,imax,tmax),sep=";",index=False)
-        np.save("ABCSubSim_hemocell_qoi_normal_%i_%i_tmax_%i.npy" % (imin,imax,tmax),qoi)
+        df.to_csv("ABCSubSim_hemocell_samples_normal_%i_%i.csv" % (imin,imax),sep=";",index=False)
+        np.save("ABCSubSim_hemocell_qoi_normal_%i_%i.npy" % (imin,imax),qoi)
+        np.save("ABCSubSim_hemocell_c_err_normal_%i_%i.npy" % (imin,imax),c_err)

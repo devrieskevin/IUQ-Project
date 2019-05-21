@@ -17,8 +17,8 @@ from lxml import etree
 from pyDOE import lhs
 
 #from local_config import *
-#from lisa_config import *
-from cartesius_config import *
+from lisa_config import *
+#from cartesius_config import *
 
 from run_tools import run_external
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     tgamma = 7.5
     tconv = np.array([int(tgamma / (0.5e-7 * gamma)) for gamma in shearrate])
     tmax = np.ceil(tconv * 1.25)
-    tmeas = 1000
+    tmeas = 2000
 
     design_vals = np.column_stack(np.broadcast_arrays(tmeas,tgamma,enableInteriorViscosity))
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     # Set the bounds on the parameters
     bounds = [[10.0,300.0],
-              [50.0,300.0]]
+              [50.0,400.0]]
 
     if enableInteriorViscosity:
         bounds.append([1.0,15.0])
