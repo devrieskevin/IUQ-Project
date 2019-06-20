@@ -4,18 +4,16 @@ import shutil
 import argparse
 
 import numpy as np
-from scipy.stats import norm,uniform,multivariate_normal
-
 import pandas as pd
 
-import UQLib.calibration.TMCMC as TMCMC
 import hemocell.model as hemocell
 import run_tools
 
 from lxml import etree
 
 #from local_config import *
-from lisa_config import *
+#from lisa_config import *
+from cartesius_config import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,8 +22,11 @@ if __name__ == "__main__":
     parser.add_argument("--tmax",dest="tmax",type=int,required=True)
     parser.add_argument("--tmeas",dest="tmeas",type=int,required=True)
     parser.add_argument("--enableInteriorViscosity",dest="enableInteriorViscosity",type=int,default=0)
-    parser.add_argument("--imin",dest="imin",type=int,default=3)
-    parser.add_argument("--imax",dest="imax",type=int,default=12)
+    parser.add_argument("--imin",dest="imin",type=int,default=0)
+    parser.add_argument("--imax",dest="imax",type=int,default=10)
+    parser.add_argument("--kLink",dest="kLink",type=float,default=15)
+    parser.add_argument("--kBend",dest="kBend",type=float,default=80)
+    parser.add_argument("--viscosityRatio",dest="viscosityRatio",type=float,default=5)
 
     args = parser.parse_args()
 
@@ -35,9 +36,12 @@ if __name__ == "__main__":
     enableInteriorViscosity = args.enableInteriorViscosity
     imin = args.imin
     imax = args.imax
+    kLink = args.kLink
+    kBend = args.kBend
+    viscosityRatio = args.viscosityRatio
 
-    params = ["tmax","tmeas"]    
-    design_vars = ["shearrate","enableInteriorViscosity"]
+    params = ["kLink","kBend","viscosityRatio"]
+    design_vars = ["shearrate","enableInteriorViscosity","tmax","tmeas"]
     
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
@@ -53,14 +57,10 @@ if __name__ == "__main__":
 
     # Compute the shear rates
     shearrate = stress / (nuP * rhoP)
-    design_vals = np.column_stack(np.broadcast_arrays(shearrate,enableInteriorViscosity))
+    design_vals = np.column_stack(np.broadcast_arrays(shearrate,enableInteriorViscosity,tmax,tmeas))
 
     # Single
-    sample = [tmax,tmeas]
-
-    # Multi
-    t_vals = np.arange(tmeas,tmax+1,tmeas)
-    samples = np.column_stack([t_vals,t_vals])
+    sample = [kLink,kBend,viscosityRatio]
 
     # Construct problem dict
     problem = {"setup":(lambda params: hemocell.setup(modelpath,params)),
@@ -70,17 +70,11 @@ if __name__ == "__main__":
                "input_data":design_vals
               }
     
-    # Sample from the posterior distribution
-    os.makedirs("Convergence_output")
-    os.chdir("Convergence_output")
-    
-    qoi, c_err = run_tools.run_batch(problem,sample,nprocs=16)
-    #qoi, c_err = run_tools.run_external(problem,samples,nprocs=16)
-    
-    os.chdir("..")
+    qoi, c_err = run_tools.run_batch(problem,sample,nprocs=24)
 
     # Write output to files
     if enableInteriorViscosity:
-        np.save("convergence_qoi_visc_%i_%i.npy" % (imin,imax),qoi)
+        np.save("convergence_qoi_visc_%i_%i_%i_%i_%i.npy" % (imin,imax,kLink,kBend,viscosityRatio),qoi)
     else:
-        np.save("convergence_qoi_normal_%i_%i.npy" % (imin,imax),qoi)
+        np.save("convergence_qoi_normal_%i_%i_%i_%i_%i.npy" % (imin,imax,kLink,kBend,viscosityRatio),qoi)
+

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -t 0-00:05:00
-#SBATCH --mail-type=BEGIN,END
+#SBATCH --mail-type=ALL
 #SBATCH --mail-user=kevin.devries@student.uva.nl
 
 N=500
@@ -19,7 +19,7 @@ date
 cp -r $HOME/IUQ-Project/* $TMPDIR
 cd $TMPDIR
 
-python sampleHemocell_ABCSubSim.py --enableInteriorViscosity $VISC --n_samples $N --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
+python3 sampleHemocell_ABCSubSim.py --enableInteriorViscosity $VISC --n_samples $N --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
 
 sleep 15
 

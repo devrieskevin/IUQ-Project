@@ -110,7 +110,7 @@ def adaptive_p(p_old, likelihoods, COVtol):
 class TMCMC():
     def __init__(self, problem, likelihood_function=normal_likelihood, p_scheduler=adaptive_p,
                  cov_scale=0.2, COVtol=1.0, nburn=0, lmax=np.inf,
-                 nprocs=1, sleep_time=0.2, logstep=50, logpath="TMCMC_log.pkl"):
+                 nprocs=1, sleep_time=0.2, logstep=50, logpath="TMCMC_log.pkl", output_directory="TMCMC_output",keep_output=True):
 
         # Unpack default keyword arguments
         self.likelihood_function = likelihood_function
@@ -121,21 +121,22 @@ class TMCMC():
         self.lmax = lmax
         self.logstep = logstep
         self.logpath = logpath
+        self.output_directory = output_directory
 
         self.model_type = problem.get("model_type",None)
     
         # Unpack model functions according to model type
         if self.model_type == "external":
             # Initialize model run scheduler
-            self.runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
+            self.runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time, keep_output=keep_output)
 
             self.sleep_time = sleep_time
-            
+
             self.setup = problem["setup"]
             self.measure = problem["measure"]
         elif self.model_type == "external_cluster":            
             # Initialize model run scheduler
-            self.runscheduler = scheduler.ClusterScheduler(nprocs=nprocs, sleep_time=sleep_time)
+            self.runscheduler = scheduler.ClusterScheduler(nprocs=nprocs, sleep_time=sleep_time, keep_output=keep_output)
 
             self.sleep_time = sleep_time
             
@@ -228,7 +229,7 @@ class TMCMC():
         if self.model_type in ["external","external_cluster"]:
             self.initialized = np.zeros(n_samples,dtype=bool)
             
-            path = "stage_%i" % (self.stage)
+            path = "%s/stage_%i" % (self.output_directory,self.stage)
             batches = [createBatch(self.setup, "batch_%i" % (n), self.var_dicts, param_dicts[n], path, self.measure) for n in range(n_samples)]
 
             # Enqueue all sample batches
@@ -331,7 +332,7 @@ class TMCMC():
                 self.param_dicts[n] = {self.model_params[m]:self.candidates[n,m] for m in range(len(self.model_params))}
             
                 if self.model_type in ["external","external_cluster"]:
-                    path = "stage_%i" % (self.stage)
+                    path = "%s/stage_%i" % (self.output_directory,self.stage)
                     self.chains[n] = createBatch(self.setup,"chain_%i_batch_%i" % 
                                                  (n,self.counter[n]),self.var_dicts,self.param_dicts[n],path,self.measure)
                 

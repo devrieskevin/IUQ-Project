@@ -5,16 +5,11 @@ import shutil
 import argparse
 
 import numpy as np
-from scipy.stats import norm,uniform,multivariate_normal
-
 import pandas as pd
-import dill
 
 import hemocell.model as hemocell
 
 from lxml import etree
-
-from pyDOE import lhs
 
 #from local_config import *
 #from lisa_config import *
@@ -28,29 +23,31 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Add arguments
-    parser.add_argument("--n_samples",dest="n_samples",type=int,default=1000)
     parser.add_argument("--imin",dest="imin",type=int,default=3)
     parser.add_argument("--imax",dest="imax",type=int,default=12)
     parser.add_argument("--enableInteriorViscosity",dest="enableInteriorViscosity",type=int,default=0)
-    parser.add_argument("--nprocs",dest="nprocs",type=int,default=16)
     parser.add_argument("--model_type",dest="model_type",type=str,default="external")
+    parser.add_argument("--method",dest="method",type=str,default="TMCMC")
+    parser.add_argument("--cellHealth",dest="cellHealth",type=str,default="healthy")
+    parser.add_argument("--lmax",dest="lmax",type=int,default=1)
 
     args = parser.parse_args()
 
     # Set design variable argument values
-    n_samples = args.n_samples
     imin = args.imin
     imax = args.imax
     enableInteriorViscosity = args.enableInteriorViscosity
-    nprocs = args.nprocs
     model_type = args.model_type
+    method = args.method
+    cellHealth = args.cellHealth
+    lmax = args.lmax
 
     if enableInteriorViscosity:
-        model_params = ["kLink","kBend","viscosityRatio","shearrate","tmax","tstart","tmeas"]
+        model_params = ["kLink","kBend","viscosityRatio",]
     else:
-        model_params = ["kLink","kBend","shearrate","tmax","tstart","tmeas"]
+        model_params = ["kLink","kBend"]
 
-    design_vars = ["enableInteriorViscosity"]
+    design_vars = ["enableInteriorViscosity","shearrate","tmax","tstart","tmeas"]
 
     # Extract data from dataset
     data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
@@ -73,7 +70,7 @@ if __name__ == "__main__":
     tmax = np.ceil(tstart * 1.25)
     tmeas = ((tmax-tstart) / 10).astype(int)
 
-    design_vals = np.array([enableInteriorViscosity])
+    design_vals = np.column_stack(np.broadcast_arrays(enableInteriorViscosity,shearrate,tmax,tstart,tmeas))
 
     # Construct problem dict
     problem = {"model_type":model_type,
@@ -84,34 +81,17 @@ if __name__ == "__main__":
                "input_data":design_vals
               }
 
-    # Set the bounds on the parameters
-    bounds = [[10.0,300.0],
-              [50.0,400.0]]
-
     if enableInteriorViscosity:
-        bounds.append([1.0,15.0])
-
-    samples = np.zeros((stress.size*n_samples,len(model_params)))
-    for n,gamma in enumerate(shearrate):
-        hsamples = lhs(len(model_params)-4,samples=n_samples,criterion="maximin")
-
-        for m,(bmin,bmax) in enumerate(bounds):
-            hsamples[:,m] = bmin + (bmax-bmin)*hsamples[:,m]
-
-        samples[n*n_samples:(n+1)*n_samples,:len(model_params)-4] = hsamples
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-4] = gamma
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-3] = tmax[n]
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-2] = tstart[n]
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-1] = tmeas[n]
-
-    qoi, c_err = run_external(problem,samples,nprocs=nprocs,path="train_output")
-
-    # Write output to files
-    if enableInteriorViscosity:
-        np.save("train_hemocell_samples_visc_%i_%i.npy" % (imin,imax),samples)
-        np.save("train_hemocell_qoi_visc_%i_%i.npy" % (imin,imax),qoi)
-        np.save("train_hemocell_c_err_visc_%i_%i.npy" % (imin,imax),c_err)
+        mode = "visc"
     else:
-        np.save("train_hemocell_samples_normal_%i_%i.npy" % (imin,imax),samples)
-        np.save("train_hemocell_qoi_normal_%i_%i.npy" % (imin,imax),qoi)
-        np.save("train_hemocell_c_err_normal_%i_%i.npy" % (imin,imax),c_err)
+        mode = "normal"
+            
+    if method == "TMCMC":
+        filename = "%s/%s_hemocell_%s_samples_%s_%i_%i_lmax_%i.csv" % (outputpath,method,cellHealth,mode,imin,imax,lmax)
+        print("File name sample file:",filename)
+        sample_df = pd.read_csv(filename,sep=";")
+    
+    mpe = np.argmax(sample_df["likelihood"].values * sample_df["prior"].values)
+    samples = sample_df.loc[mpe][["kLink","kBend","viscosityRatio"]].values[None,:]
+    
+    qoi, c_err = run_external(problem,samples,nprocs=24,path="sample_output")

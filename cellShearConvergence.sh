@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -t 0-12:00:00
-#SBATCH --mail-type=BEGIN,END
+#SBATCH --mail-type=ALL
 #SBATCH --mail-user=kevin.devries@student.uva.nl
 
 TMAX=1000000
@@ -9,22 +9,28 @@ TMEAS=500
 VISC=1
 IMIN=0
 IMAX=10
+KLINK=100
+KBEND=80
+VISCOSITYRATIO=5
 
-cp -r $HOME/IUQ-Project/* $TMPDIR
-cd $TMPDIR
+if [[ $VISC == 1 ]]; then
+    TYPE="visc"
+else
+    TYPE="normal"
+fi
 
 echo "Starting script"
 date
 
-python testConvergence.py --tmax $TMAX --tmeas $TMEAS --enableInteriorViscosity $VISC --imin $IMIN --imax $IMAX
+OUTDIR="$(mktemp -d -p /scratch-shared hemocell_convergence.XXXXX)"
+echo "Output directory: $OUTDIR"
 
-if [[ $VISC == 1 ]]; then
-    mv Convergence_output/ $HOME/results/conv_output_visc
-    cp  $TMPDIR/convergence_qoi_visc_${IMIN}_${IMAX}.npy $HOME/results
-else
-    mv Convergence_output/ $HOME/results/conv_output_normal
-    cp  $TMPDIR/convergence_qoi_normal_${IMIN}_${IMAX}.npy $HOME/results
-fi
+cp -r $HOME/IUQ-Project/* $OUTDIR
+cd $OUTDIR
+
+python3 testConvergence.py --tmax $TMAX --tmeas $TMEAS --enableInteriorViscosity $VISC --imin $IMIN --imax $IMAX --kLink $KLINK --kBend $KBEND --viscosityRatio $VISCOSITYRATIO
+
+cp  $OUTDIR/convergence_qoi_${TYPE}_${IMIN}_${IMAX}_${KLINK}_${KBEND}_${VISCOSITYRATIO}.npy $HOME/results
 
 echo "Ending script"
 date

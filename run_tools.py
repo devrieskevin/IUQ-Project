@@ -1,5 +1,6 @@
 import os
 import time
+import tqdm
 import scheduler
 
 import numpy as np
@@ -18,7 +19,7 @@ def createBatch(setup,tag,var_dicts,param_dict,path,measure):
 
     return batch
 
-def run_external(problem, samples, nprocs=1, sleep_time=0.2):
+def run_external(problem, samples, nprocs=1, sleep_time=0.2, path="run_output"):
 
     model_type = problem.get("model_type",None)
 
@@ -63,12 +64,14 @@ def run_external(problem, samples, nprocs=1, sleep_time=0.2):
     
     evaluated = np.zeros(samples.shape[0],dtype=bool)
     
-    path = "model_output"
     batches = [createBatch(setup, "batch_%i" % (n), var_dicts, param_dicts[n], path, measure) for n in range(samples.shape[0])]
 
     # Enqueue all sample batches
     for batch in batches:
         runscheduler.enqueueBatch(batch)
+
+    # Initialize progress bar
+    pbar = tqdm.tqdm(total=len(batches))
 
     # Run all batches and retrieve quantities of interest
     while not np.all(evaluated):
@@ -80,16 +83,20 @@ def run_external(problem, samples, nprocs=1, sleep_time=0.2):
                 qoi[n,m], c_err[n,m] = run.output
 
             evaluated[n] = True
+            pbar.update(1)
 
         runscheduler.pushQueue()
         time.sleep(sleep_time)
     
     if model_type == "external_cluster":
         runscheduler.close()
-    
+
+    # Close progress bar    
+    pbar.close()
+
     return qoi, c_err
     
-def run_batch(problem, sample, nprocs=1, sleep_time=0.2):
+def run_batch(problem, sample, nprocs=1, sleep_time=0.2, path="run_output"):
 
     # Get base working directory
     baseDir = os.getcwd()
@@ -116,15 +123,14 @@ def run_batch(problem, sample, nprocs=1, sleep_time=0.2):
     
     print("Evaluating...")
 
-    tmax = param_dict["tmax"]
-    tmeas = param_dict["tmeas"]
+    tmax = var_dicts[0]["tmax"]
+    tmeas = var_dicts[0]["tmeas"]
 
     # Initialize output buffers
     qoi = np.empty((np.arange(tmeas,tmax+1,tmeas).shape[0],x.shape[0]))
     c_err = np.empty((np.arange(tmeas,tmax+1,tmeas).shape[0],x.shape[0]))
     
-    path = "model_output"
-    batch = createBatch(setup, "hemocell_batch", var_dicts, param_dict,path,measure)
+    batch = createBatch(setup, "hemocell_batch", var_dicts, param_dict, path, measure)
     runscheduler.enqueueBatch(batch)
 
     # Run batch and retrieve quantities of interest

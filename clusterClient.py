@@ -10,14 +10,15 @@ import dill
 import scheduler
 import hemocell.model as hemocell
 
-from lisa_config import *
-#from cartesius_config import *
+#from lisa_config import *
+from cartesius_config import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--server_host",dest="server_host",required=True)
     parser.add_argument("--port",dest="port",type=int,default=6677)
     parser.add_argument("--nprocs",dest="nprocs",type=int,default=16)
+    parser.add_argument("--keep_output",dest="keep_output",action="store_true",default=False)
 
     args = parser.parse_args()
 
@@ -25,10 +26,7 @@ if __name__ == "__main__":
     server_host = args.server_host
     port = args.port
     nprocs = args.nprocs
-
-    # Setup directory
-    os.makedirs("client_output",exist_ok=True)
-    os.chdir("client_output")
+    keep_output = args.keep_output
 
     # INITIALIZE CLIENT
     s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -44,7 +42,7 @@ if __name__ == "__main__":
 
     print("Successfully connected to server")
 
-    runscheduler = scheduler.ModelScheduler(nprocs)
+    runscheduler = scheduler.ModelScheduler(nprocs,keep_output=keep_output)
 
     # Send client data to server
     data = {}

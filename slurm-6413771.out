@@ -1,0 +1,10 @@
+Cell type: healthy
+Model type: visc
+Starting script
+Fri Jun 21 16:20:41 CEST 2019
+Output directory: /scratch-shared/hemocell_sample.cO3SL
+File name sample file: /home/annanik/results/TMCMC_hemocell_healthy_samples_visc_2_8_lmax_1.csv
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [59:16<00:00, 3556.14s/it]
+Ending script
+Fri Jun 21 17:20:03 CEST 2019

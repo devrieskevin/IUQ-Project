@@ -131,12 +131,12 @@ def measureEI(outputpath,params):
 def measureEI_convergence(outputpath,params):
     tmax = int(params["tmax"] + 0.5)
     tmeas = int(params["tmeas"] + 0.5)
-    tgamma = params["tgamma"]
+    tstart = int(params["tstart"] + 0.5)
     shearrate = params["shearrate"]
 
     # Get time steps to measure after convergence
     tvals = np.arange(0,tmax+1,tmeas)
-    tvals = tvals[tvals*0.5e-7*shearrate >= tgamma]
+    tvals = tvals[tvals >= tstart]
 
     datapath = "%s/tmp/hdf5/" % (outputpath)
 
@@ -180,6 +180,7 @@ def measureEI_convergence(outputpath,params):
         EL_mean = EL_vals[0]
         EL_std = 0.0
     else:
+        print("RBC broke before convergence in %s, returning dummy value" % datapath)
         EL_mean = -100
         EL_std = 0.0
 

@@ -1,0 +1,10 @@
+Cell type: treated
+Model type: visc
+Starting script
+Fri Jun 21 14:27:03 CEST 2019
+Output directory: /scratch-shared/hemocell_sample.DSN6p
+File name sample file: /home/annanik/results/TMCMC_hemocell_treated_samples_visc_4_10_lmax_1.csv
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [27:54<00:00, 1674.49s/it]
+Ending script
+Fri Jun 21 14:55:00 CEST 2019

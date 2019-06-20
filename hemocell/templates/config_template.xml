@@ -22,6 +22,7 @@
 
 <sim>
     <tmax> 8000 </tmax> <!-- total number of iterations -->
+    <tstart> 0 </tstart> <!-- Iteration after which data is written -->
     <tmeas> 8000 </tmeas> <!-- interval after which data is written --> 
     <tcheckpoint>500000</tcheckpoint>
     <interiorViscosity>10</interiorViscosity>

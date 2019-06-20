@@ -11,23 +11,21 @@ import dill
 
 import numpy as np
 
-# Import environment paths
-from lisa_config import *
-#from local_config import *
-
-
 class ModelScheduler:
     """
     Defines a model object which implements the overhead for running a
     black box model.
     """
 
-    def __init__(self, nprocs=1, sleep_time=0.2):
+    def __init__(self, nprocs=1, sleep_time=0.2, keep_output=True):
         # Number of processes allowed to run concurrently
         self.nprocs = nprocs
         
         # Set initial sleep time
         self.sleep_time = sleep_time
+
+        # Set output flag
+        self.keep_output = keep_output
 
         # List processes currently running
         self.running = [None for n in range(self.nprocs)]
@@ -82,14 +80,20 @@ class ModelScheduler:
 
                 self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
 
+                if not self.keep_output:
+                    shutil.rmtree(outpath)
+
                 if self.running[n].output is None:
                     print("Return code:",self.running[n].process.returncode)
                     print("Task failed in %s, restarting task" % outpath)
-                    shutil.rmtree(outpath)
+
+                    if self.keep_output:
+                        shutil.rmtree(outpath)
+
                     p = self.run(self.running[n])
                     self.running[n].process = p
                 else:
-                    self.running[n] = None            
+                    self.running[n] = None 
 
         return
 
@@ -171,6 +175,9 @@ class ModelScheduler:
                 self.running[n].process = p
                 self.running[n].process.wait()
                 self.running[n].output = self.running[n].measure(outpath,self.running[n].params)
+
+            if not self.keep_output:
+                shutil.rmtree(outpath)
 
             self.running[n] = None
 
@@ -523,7 +530,7 @@ class ClusterScheduler:
     on the corresponding allocated nodes.
     """
 
-    def __init__(self, nprocs=1, sleep_time=0.2):
+    def __init__(self, nprocs=1, sleep_time=0.2, keep_output=True):
         # The server socket used to listen for clients
         self.server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         
@@ -534,7 +541,7 @@ class ClusterScheduler:
         self.sleep_time = sleep_time
 
         # Number of possible concurrent local processes
-        self.scheduler = ModelScheduler(nprocs,sleep_time)
+        self.scheduler = ModelScheduler(nprocs,sleep_time,keep_output)
 
         # Run FIFO queue
         self.queue = []
@@ -911,6 +918,7 @@ def worker_client():
     return
 
 if __name__ == "__main__":
+    from local_config import *
     import hemocell.model as hemocell
 
     setup = lambda params: hemocell.setup(modelpath,params)

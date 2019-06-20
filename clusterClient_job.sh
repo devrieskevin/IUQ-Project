@@ -1,16 +1,12 @@
 MAINNODE="$1"
-NPROCS=16
+OUTDIR="$2"
+NPROCS=24
 
 # Lisa
-. /sara/sw/modules/module/init/bash
+#. /sara/sw/modules/module/init/bash
 
 source $HOME/.bash_profile > /dev/null
 
-# Lisa
-TMPDIR="/scratch/kdevries_client"
-mkdir $TMPDIR
-
-cp -r $HOME/IUQ-Project/* "$TMPDIR"
-cd $TMPDIR
+cd $OUTDIR
 
 python3 clusterClient.py --server_host $MAINNODE --nprocs $NPROCS
