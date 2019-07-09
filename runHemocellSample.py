@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--imax",dest="imax",type=int,default=12)
     parser.add_argument("--enableInteriorViscosity",dest="enableInteriorViscosity",type=int,default=0)
     parser.add_argument("--model_type",dest="model_type",type=str,default="external")
+    parser.add_argument("--model",dest="model",type=str,default="hemocell")
     parser.add_argument("--method",dest="method",type=str,default="TMCMC")
     parser.add_argument("--cellHealth",dest="cellHealth",type=str,default="healthy")
     parser.add_argument("--lmax",dest="lmax",type=int,default=1)
@@ -38,6 +39,7 @@ if __name__ == "__main__":
     imax = args.imax
     enableInteriorViscosity = args.enableInteriorViscosity
     model_type = args.model_type
+    model = args.model
     method = args.method
     cellHealth = args.cellHealth
     lmax = args.lmax
@@ -87,7 +89,7 @@ if __name__ == "__main__":
         mode = "normal"
             
     if method == "TMCMC":
-        filename = "%s/%s_hemocell_%s_samples_%s_%i_%i_lmax_%i.csv" % (outputpath,method,cellHealth,mode,imin,imax,lmax)
+        filename = "%s/%s_%s_%s_samples_%s_%i_%i_lmax_%s.csv" % (outputpath,method,model,cellHealth,mode,imin,imax,lmax)
         print("File name sample file:",filename)
         sample_df = pd.read_csv(filename,sep=";")
     
@@ -95,3 +97,9 @@ if __name__ == "__main__":
     samples = sample_df.loc[mpe][["kLink","kBend","viscosityRatio"]].values[None,:]
     
     qoi, c_err = run_external(problem,samples,nprocs=24,path="sample_output")
+
+    np.save("%s/%s_%s_%s_qoi_%s_%i_%i_lmax_%s_mpe_sample.npy" % 
+            (outputpath,method,model,cellHealth,mode,imin,imax,lmax),qoi)
+    
+    np.save("%s/%s_%s_%s_c_err_%s_%i_%i_lmax_%s_mpe_sample.npy" % 
+            (outputpath,method,model,cellHealth,mode,imin,imax,lmax),c_err)
