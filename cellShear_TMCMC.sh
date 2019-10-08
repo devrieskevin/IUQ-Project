@@ -6,6 +6,7 @@
 
 N=1000
 LMAX=1
+NBURN=0
 TREATMENT="0"
 VISC=1
 IMIN=2
@@ -40,7 +41,7 @@ echo "Output directory: $OUTDIR"
 cp -r $HOME/IUQ-Project/* $OUTDIR
 cd $OUTDIR
 
-python3 sampleHemocell_TMCMC.py --enableInteriorViscosity $VISC --n_samples $N --lmax $LMAX --treatment $TREATMENT --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
+python3 sampleHemocell_TMCMC.py --enableInteriorViscosity $VISC --n_samples $N --lmax $LMAX --nburn $NBURN --treatment $TREATMENT --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
 
 sleep 10
 
@@ -62,9 +63,9 @@ done
 
 wait
 
-cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}.npy $HOME/results
-cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}.npy $HOME/results
-cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_samples_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}.csv $HOME/results
+cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}.npy $HOME/results
+cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}.npy $HOME/results
+cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_samples_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}.csv $HOME/results
 
 echo "Ending script"
 date

@@ -6,6 +6,7 @@
 
 METHOD="TMCMC"
 LMAX=1
+NBURN=0
 TREATMENT="0"
 VISC=1
 IMIN=2
@@ -37,12 +38,12 @@ echo "Output directory: $OUTDIR"
 cp -r $HOME/IUQ-Project/* $OUTDIR
 cd $OUTDIR
 
-python3 runHemocellSample.py --method $METHOD --enableInteriorViscosity $VISC --lmax $LMAX --cellHealth $CELLHEALTH --imin $IMIN --imax $IMAX --model_type ${MODEL_TYPE} --model ${MODEL}
+python3 runHemocellSample.py --method $METHOD --enableInteriorViscosity $VISC --lmax $LMAX --nburn $NBURN --cellHealth $CELLHEALTH --imin $IMIN --imax $IMAX --model_type ${MODEL_TYPE} --model ${MODEL}
 
-cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_mpe_sample.npy $HOME/results
-cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_mpe_sample.npy $HOME/results
+cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
+cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
 
-cp -r $OUTDIR/sample_output $HOME/results/${METHOD}_${MODEL}_${CELLHEALTH}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_mpe_sample
+cp -r $OUTDIR/sample_output $HOME/results/${METHOD}_${MODEL}_${CELLHEALTH}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample
 
 echo "Ending script"
 date

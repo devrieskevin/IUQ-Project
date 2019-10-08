@@ -31,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--method",dest="method",type=str,default="TMCMC")
     parser.add_argument("--cellHealth",dest="cellHealth",type=str,default="healthy")
     parser.add_argument("--lmax",dest="lmax",type=int,default=1)
+    parser.add_argument("--nburn",dest="nburn",type=int,default=0)
 
     args = parser.parse_args()
 
@@ -43,6 +44,7 @@ if __name__ == "__main__":
     method = args.method
     cellHealth = args.cellHealth
     lmax = args.lmax
+    nburn = args.nburn
 
     if enableInteriorViscosity:
         model_params = ["kLink","kBend","viscosityRatio",]
@@ -89,7 +91,7 @@ if __name__ == "__main__":
         mode = "normal"
             
     if method == "TMCMC":
-        filename = "%s/%s_%s_%s_samples_%s_%i_%i_lmax_%s.csv" % (outputpath,method,model,cellHealth,mode,imin,imax,lmax)
+        filename = "%s/%s_%s_%s_samples_%s_%i_%i_lmax_%s_nburn_%i.csv" % (outputpath,method,model,cellHealth,mode,imin,imax,lmax,nburn)
         print("File name sample file:",filename)
         sample_df = pd.read_csv(filename,sep=";")
     
@@ -98,8 +100,8 @@ if __name__ == "__main__":
     
     qoi, c_err = run_external(problem,samples,nprocs=24,path="sample_output")
 
-    np.save("%s/%s_%s_%s_qoi_%s_%i_%i_lmax_%s_mpe_sample.npy" % 
-            (outputpath,method,model,cellHealth,mode,imin,imax,lmax),qoi)
+    np.save("%s/%s_%s_%s_qoi_%s_%i_%i_lmax_%s_nburn_%i_mpe_sample.npy" % 
+            (outputpath,method,model,cellHealth,mode,imin,imax,lmax,nburn),qoi)
     
-    np.save("%s/%s_%s_%s_c_err_%s_%i_%i_lmax_%s_mpe_sample.npy" % 
-            (outputpath,method,model,cellHealth,mode,imin,imax,lmax),c_err)
+    np.save("%s/%s_%s_%s_c_err_%s_%i_%i_lmax_%s_nburn_%i_mpe_sample.npy" % 
+            (outputpath,method,model,cellHealth,mode,imin,imax,lmax,nburn),c_err)
