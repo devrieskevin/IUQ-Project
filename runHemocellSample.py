@@ -11,9 +11,9 @@ import hemocell.model as hemocell
 
 from lxml import etree
 
-#from local_config import *
+from local_config import *
 #from lisa_config import *
-from cartesius_config import *
+#from cartesius_config import *
 
 from run_tools import run_external
 
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     mpe = np.argmax(sample_df["likelihood"].values * sample_df["prior"].values)
     samples = sample_df.loc[mpe][["kLink","kBend","viscosityRatio"]].values[None,:]
     
-    qoi, c_err = run_external(problem,samples,nprocs=24,path="sample_output")
+    qoi, c_err = run_external(problem,samples,nprocs=1,path="sample_output")
 
     np.save("%s/%s_%s_%s_qoi_%s_%i_%i_lmax_%s_nburn_%i_mpe_sample.npy" % 
             (outputpath,method,model,cellHealth,mode,imin,imax,lmax,nburn),qoi)

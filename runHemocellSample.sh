@@ -10,7 +10,7 @@ NBURN=0
 TREATMENT="0"
 VISC=1
 IMIN=2
-IMAX=8
+IMAX=10
 MODEL_TYPE="external"
 MODEL="GP"
 
@@ -32,18 +32,20 @@ echo "Model type: $TYPE"
 echo "Starting script"
 date
 
-OUTDIR="$(mktemp -d -p /scratch-shared hemocell_sample.XXXXX)"
-echo "Output directory: $OUTDIR"
+#OUTDIR="$(mktemp -d -p /scratch-shared hemocell_sample.XXXXX)"
+#echo "Output directory: $OUTDIR"
 
-cp -r $HOME/IUQ-Project/* $OUTDIR
-cd $OUTDIR
+#cp -r $HOME/IUQ-Project/* $OUTDIR
+#cd $OUTDIR
 
 python3 runHemocellSample.py --method $METHOD --enableInteriorViscosity $VISC --lmax $LMAX --nburn $NBURN --cellHealth $CELLHEALTH --imin $IMIN --imax $IMAX --model_type ${MODEL_TYPE} --model ${MODEL}
 
-cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
-cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
+#cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
+#cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
 
-cp -r $OUTDIR/sample_output $HOME/results/${METHOD}_${MODEL}_${CELLHEALTH}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample
+#cp -r $OUTDIR/sample_output $HOME/results/${METHOD}_${MODEL}_${CELLHEALTH}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample
+
+mv ./sample_output $HOME/master_project/results/${METHOD}_${MODEL}_${CELLHEALTH}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample
 
 echo "Ending script"
 date
