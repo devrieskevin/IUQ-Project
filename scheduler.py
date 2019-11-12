@@ -7,6 +7,8 @@ import socket
 
 import shutil
 
+from collections import deque
+
 import dill
 
 import numpy as np
@@ -31,7 +33,7 @@ class ModelScheduler:
         self.running = [None for n in range(self.nprocs)]
 
         # Run FIFO queue
-        self.queue = []
+        self.queue = deque()
 
         return
 
@@ -106,7 +108,7 @@ class ModelScheduler:
         if len(self.queue) > 0:
             for n in range(self.nprocs):
                 if self.running[n] is None:
-                    run = self.queue.pop(0)
+                    run = self.queue.popleft()
 
                     p = self.run(run)
                     
@@ -129,7 +131,7 @@ class ModelScheduler:
                 break
 
             if self.running[n] is None:
-                run = self.queue.pop(0)
+                run = self.queue.popleft()
 
                 p = self.run(run)
                     
@@ -215,7 +217,7 @@ class ModelScheduler:
         Prepends a Run to the run queue
         """
         
-        self.queue = [run] + self.queue
+        self.queue.appendleft(run)
         return
 
     def prependBatch(self,batch):
@@ -223,7 +225,7 @@ class ModelScheduler:
         Prepends a batch to the run queue
         """
 
-        self.queue = batch + self.queue
+        self.queue.extendleft(reversed(batch))
         return
 
     def enqueueBatch(self,batch):
@@ -231,7 +233,7 @@ class ModelScheduler:
         Adds a batch of Runs to the run queue
         """
 
-        self.queue = self.queue + batch
+        self.queue.extend(batch)
         return
 
     def pollBatch(self,batch):
@@ -544,7 +546,7 @@ class ClusterScheduler:
         self.scheduler = ModelScheduler(nprocs,sleep_time,keep_output)
 
         # Run FIFO queue
-        self.queue = []
+        self.queue = deque()
 
         return
 
@@ -656,14 +658,14 @@ class ClusterScheduler:
 
         if len(self.queue) > 0:
             if None in self.scheduler.running:
-                run = self.queue.pop(0)
+                run = self.queue.popleft()
                 self.scheduler.enqueue(run)
                 self.scheduler.pushQueue()
             else:
                 for client in self.clients:
                     for n in range(self.clients[client]["nprocs"]):
                         if self.clients[client]["running"][n] is None:
-                            run = self.queue.pop(0)
+                            run = self.queue.popleft()
 
                             data = {"command":"run","runs":[(n,run)]}
                             message = dill.dumps(data)
@@ -696,7 +698,7 @@ class ClusterScheduler:
                 return
 
             if running is None:
-                run = self.queue.pop(0)
+                run = self.queue.popleft()
                 self.scheduler.enqueue(run)
 
         self.scheduler.pushQueue()
@@ -707,7 +709,7 @@ class ClusterScheduler:
                     return
 
                 if self.clients[client]["running"][n] is None:
-                    run = self.queue.pop(0)
+                    run = self.queue.popleft()
 
                     data = {"command":"run","runs":[(n,run)]}
                     message = dill.dumps(data)
@@ -778,7 +780,7 @@ class ClusterScheduler:
         Prepends a Run to the run queue
         """
         
-        self.queue = [run] + self.queue
+        self.queue.appendleft(run)
         return
 
     def prependBatch(self,batch):
@@ -786,7 +788,7 @@ class ClusterScheduler:
         Prepends a batch to the run queue
         """
 
-        self.queue = batch + self.queue
+        self.queue.extendleft(reversed(batch))
         return
 
     def enqueueBatch(self,batch):
@@ -794,7 +796,7 @@ class ClusterScheduler:
         Adds a batch of Runs to the run queue
         """
 
-        self.queue = self.queue + batch
+        self.queue.extend(batch)
         return
 
     def pollBatch(self,batch):
