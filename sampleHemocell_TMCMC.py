@@ -31,12 +31,12 @@ def model_prior(sample,enableInteriorViscosity):
     else:
         return np.prod([kLink_prior,kBend_prior])
 
-def model_sampler(n_samples,enableInteriorViscosity):
-    kLink_samples = np.random.uniform(10.0,300.0,n_samples)
-    kBend_samples = np.random.uniform(50.0,400.0,n_samples)
+def model_sampler(nsamples,enableInteriorViscosity):
+    kLink_samples = np.random.uniform(10.0,300.0,nsamples)
+    kBend_samples = np.random.uniform(50.0,400.0,nsamples)
     
     if enableInteriorViscosity:
-        viscosityRatio_samples = np.random.uniform(1.0,15.0,n_samples)
+        viscosityRatio_samples = np.random.uniform(1.0,15.0,nsamples)
         return np.column_stack([kLink_samples,kBend_samples,viscosityRatio_samples])
     else:
         return np.column_stack([kLink_samples,kBend_samples])
@@ -44,14 +44,14 @@ def model_sampler(n_samples,enableInteriorViscosity):
 def error_prior(sample):
     return np.prod(uniform.pdf(sample,0.001,0.099))
 
-def error_sampler(n_samples):
-    return np.random.uniform(0.001,0.1,(n_samples,1))
+def error_sampler(nsamples):
+    return np.random.uniform(0.001,0.1,(nsamples,1))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Add arguments
-    parser.add_argument("--n_samples",dest="n_samples",type=int,default=100)
+    parser.add_argument("--nsamples",dest="nsamples",type=int,default=100)
     parser.add_argument("--lmax",dest="lmax",type=str,default="inf")
     parser.add_argument("--nburn",dest="nburn",type=int,default=0)
     parser.add_argument("--treatment",dest="treatment",type=float,default=0)
@@ -61,11 +61,12 @@ if __name__ == "__main__":
     parser.add_argument("--imax",dest="imax",type=int,default=12)
     parser.add_argument("--nprocs",dest="nprocs",type=int,default=16)
     parser.add_argument("--model_type",dest="model_type",type=str,default="external")
+    parser.add_argument("--errtype",dest="errtype",type=str,default="EL_error")
 
     args = parser.parse_args()
 
     # Set design variable argument values
-    n_samples = args.n_samples
+    nsamples = args.nsamples
 
     lmax = args.lmax
     if lmax == "inf":
@@ -81,6 +82,7 @@ if __name__ == "__main__":
     imax = args.imax
     nprocs = args.nprocs
     model_type = args.model_type
+    errtype = args.errtype
 
     # Define problem parameters
     if enableInteriorViscosity:
@@ -92,17 +94,19 @@ if __name__ == "__main__":
     design_vars = ["shearrate","tmax","tmeas","tstart","enableInteriorViscosity"]
 
     # Extract data from dataset
-    data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
+    data = pd.read_csv("%s/Ekcta_full.csv" % (datapath),sep=";")
 
     if treatment == 0:
         data = data.loc[data["Treatment"] == 0.5]
-        stress,el = data.values[imin:imax,[1,2]].T
-        el_err = np.zeros(el.shape)
+        stress,el,el_err = data.values[imin:imax,[1,2,3]].T
         cellHealth = "healthy"
     elif treatment > 0:
         data = data.loc[data["Treatment"] == treatment]
-        stress,el,el_err = data.values[imin:imax,[1,3,4]].T
+        stress,el,el_err = data.values[imin:imax,[1,2,3]].T
         cellHealth = "treated"
+
+    if errtype == "no_EL_error":
+        el_err = np.zeros(el_err.shape)
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
@@ -137,32 +141,32 @@ if __name__ == "__main__":
                "data_errors":el_err,
                "error_mapping":error_mapping,
                "model_prior":(lambda sample: model_prior(sample,enableInteriorViscosity)),
-               "model_sampler":(lambda n_samples: model_sampler(n_samples,enableInteriorViscosity)),
+               "model_sampler":(lambda nsamples: model_sampler(nsamples,enableInteriorViscosity)),
                "error_prior":error_prior,
                "error_sampler":error_sampler
               }
 
     if enableInteriorViscosity:
         if not checkpointed:
-            TMCMC_sampler = TMCMC.TMCMC(problem,lmax=lmax,nburn=nburn,logpath="%s/TMCMC_hemocell_%s_visc_%i_%i_lmax_%s_nburn_%i_log.pkl" % 
-                                                                              (outputpath,cellHealth,imin,imax,lmax,nburn),logstep=2000,nprocs=nprocs)
+            TMCMC_sampler = TMCMC.TMCMC(problem,lmax=lmax,nburn=nburn,logpath="%s/TMCMC_hemocell_%s_%s_visc_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % 
+                                                                              (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),logstep=2000,nprocs=nprocs)
         else:
-            TMCMC_sampler = TMCMC.load_state("%s/TMCMC_hemocell_%s_visc_%i_%i_lmax_%s_nburn_%i_log.pkl" % (outputpath,cellHealth,imin,imax,lmax,nburn))
+            TMCMC_sampler = TMCMC.load_state("%s/TMCMC_hemocell_%s_%s_visc_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples))
     else:
         if not checkpointed:
-            TMCMC_sampler = TMCMC.TMCMC(problem,lmax=lmax,nburn=nburn,logpath="%s/TMCMC_hemocell_%s_normal_%i_%i_lmax_%s_nburn_%i_log.pkl" % 
-                                                                              (outputpath,cellHealth,imin,imax,lmax,nburn),logstep=2000,nprocs=nprocs)
+            TMCMC_sampler = TMCMC.TMCMC(problem,lmax=lmax,nburn=nburn,logpath="%s/TMCMC_hemocell_%s_%s_normal_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % 
+                                                                              (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),logstep=2000,nprocs=nprocs)
         else:
-            TMCMC_sampler = TMCMC.load_state("%s/TMCMC_hemocell_%s_normal_%i_%i_lmax_%s_nburn_%i_log.pkl" % (outputpath,cellHealth,imin,imax,lmax,nburn))
+            TMCMC_sampler = TMCMC.load_state("%s/TMCMC_hemocell_%s_%s_normal_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples))
 
-    df,qoi,c_err = TMCMC_sampler.sample(n_samples,checkpoint=checkpointed)
+    df,qoi,c_err = TMCMC_sampler.sample(nsamples,checkpoint=checkpointed)
 
     # Write output to files
     if enableInteriorViscosity:
-        df.to_csv("TMCMC_hemocell_%s_samples_visc_%i_%i_lmax_%s_nburn_%i.csv" % (cellHealth,imin,imax,lmax,nburn),sep=";",index=False)
-        np.save("TMCMC_hemocell_%s_qoi_visc_%i_%i_lmax_%s_nburn_%i.npy" % (cellHealth,imin,imax,lmax,nburn),qoi)
-        np.save("TMCMC_hemocell_%s_c_err_visc_%i_%i_lmax_%s_nburn_%i.npy" % (cellHealth,imin,imax,lmax,nburn),c_err)
+        df.to_csv("%s/TMCMC_hemocell_%s_%s_samples_visc_%i_%i_lmax_%s_nburn_%i_nsamples_%i.csv" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),sep=";",index=False)
+        np.save("%s/TMCMC_hemocell_%s_%s_qoi_visc_%i_%i_lmax_%s_nburn_%i_nsamples_%i.npy" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),qoi)
+        np.save("%s/TMCMC_hemocell_%s_%s_c_err_visc_%i_%i_lmax_%s_nburn_%i_nsamples_%i.npy" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),c_err)
     else:
-        df.to_csv("TMCMC_hemocell_%s_samples_normal_%i_%i_lmax_%s_nburn_%i.csv" % (cellHealth,imin,imax,lmax,nburn),sep=";",index=False)
-        np.save("TMCMC_hemocell_%s_qoi_normal_%i_%i_lmax_%s_nburn_%i.npy" % (cellHealth,imin,imax,lmax,nburn),qoi)
-        np.save("TMCMC_hemocell_%s_c_err_normal_%i_%i_lmax_%s_nburn_%i.npy" % (cellHealth,imin,imax,lmax,nburn),c_err)
+        df.to_csv("%s/TMCMC_hemocell_%s_%s_samples_normal_%i_%i_lmax_%s_nburn_%i_nsamples_%i.csv" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),sep=";",index=False)
+        np.save("%s/TMCMC_hemocell_%s_%s_qoi_normal_%i_%i_lmax_%s_nburn_%i_nsamples_%i.npy" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),qoi)
+        np.save("%s/TMCMC_hemocell_%s_%s_c_err_normal_%i_%i_lmax_%s_nburn_%i_nsamples_%i.npy" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),c_err)

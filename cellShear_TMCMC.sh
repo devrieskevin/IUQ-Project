@@ -11,8 +11,9 @@ TREATMENT="0"
 VISC=1
 IMIN=2
 IMAX=8
-NPROCS=24
+NPROCS=23
 MODEL_TYPE="external_cluster"
+ERRTYPE="EL_error"
 
 if [[ $TREATMENT > 0 ]]; then
     CELLHEALTH="treated"
@@ -41,7 +42,7 @@ echo "Output directory: $OUTDIR"
 cp -r $HOME/IUQ-Project/* $OUTDIR
 cd $OUTDIR
 
-python3 sampleHemocell_TMCMC.py --enableInteriorViscosity $VISC --n_samples $N --lmax $LMAX --nburn $NBURN --treatment $TREATMENT --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
+python3 sampleHemocell_TMCMC.py --enableInteriorViscosity $VISC --nsamples $N --lmax $LMAX --nburn $NBURN --treatment $TREATMENT --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} --errtype ${ERRTYPE} &
 
 sleep 10
 
@@ -63,9 +64,9 @@ done
 
 wait
 
-cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}.npy $HOME/results
-cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}.npy $HOME/results
-cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_samples_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}.csv $HOME/results
+#cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_${ERRTYPE}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_nsamples_$N.npy $HOME/results
+#cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_${ERRTYPE}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_nsamples_$N.npy $HOME/results
+#cp  $OUTDIR/TMCMC_hemocell_${CELLHEALTH}_${ERRTYPE}_samples_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_nsamples_$N.csv $HOME/results
 
 echo "Ending script"
 date

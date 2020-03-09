@@ -17,8 +17,6 @@ from local_config import *
 
 from run_tools import run_external
 
-np.random.seed(676767)
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -28,10 +26,12 @@ if __name__ == "__main__":
     parser.add_argument("--enableInteriorViscosity",dest="enableInteriorViscosity",type=int,default=0)
     parser.add_argument("--model_type",dest="model_type",type=str,default="external")
     parser.add_argument("--model",dest="model",type=str,default="hemocell")
+    parser.add_argument("--errType",dest="errType",type=str,default="EL_error")
     parser.add_argument("--method",dest="method",type=str,default="TMCMC")
     parser.add_argument("--cellHealth",dest="cellHealth",type=str,default="healthy")
     parser.add_argument("--lmax",dest="lmax",type=int,default=1)
     parser.add_argument("--nburn",dest="nburn",type=int,default=0)
+    parser.add_argument("--nsamples",dest="nsamples",type=int,default=10000)
 
     args = parser.parse_args()
 
@@ -41,22 +41,24 @@ if __name__ == "__main__":
     enableInteriorViscosity = args.enableInteriorViscosity
     model_type = args.model_type
     model = args.model
+    errType = args.errType
     method = args.method
     cellHealth = args.cellHealth
     lmax = args.lmax
     nburn = args.nburn
+    nsamples = args.nsamples
 
     if enableInteriorViscosity:
-        model_params = ["kLink","kBend","viscosityRatio",]
+        model_params = ["kLink","kBend","viscosityRatio"]
     else:
         model_params = ["kLink","kBend"]
 
     design_vars = ["enableInteriorViscosity","shearrate","tmax","tstart","tmeas"]
 
     # Extract data from dataset
-    data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
+    data = pd.read_csv("%s/Ekcta_full.csv" % (datapath),sep=";")
     data = data.loc[data["Treatment"] == 0.5]
-    stress,el,el_err = data.values[imin:imax,[1,3,4]].T
+    stress,el,el_err = data.values[imin:imax,[1,2,3]].T
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
@@ -91,7 +93,8 @@ if __name__ == "__main__":
         mode = "normal"
             
     if method == "TMCMC":
-        filename = "%s/%s_%s_%s_samples_%s_%i_%i_lmax_%s_nburn_%i.csv" % (outputpath,method,model,cellHealth,mode,imin,imax,lmax,nburn)
+        filename = "%s/%s_%s_%s_%s_samples_%s_%i_%i_lmax_%s_nburn_%i_nsamples_%i.csv" % (outputpath,method,model,cellHealth,
+                                                                                         errType,mode,imin,imax,lmax,nburn,nsamples)
         print("File name sample file:",filename)
         sample_df = pd.read_csv(filename,sep=";")
     
@@ -100,8 +103,8 @@ if __name__ == "__main__":
     
     qoi, c_err = run_external(problem,samples,nprocs=1,path="sample_output")
 
-    np.save("%s/%s_%s_%s_qoi_%s_%i_%i_lmax_%s_nburn_%i_mpe_sample.npy" % 
-            (outputpath,method,model,cellHealth,mode,imin,imax,lmax,nburn),qoi)
+    np.save("%s/%s_%s_%s_%s_qoi_%s_%i_%i_lmax_%s_nburn_%i_nsamples_%i_mpe_sample.npy" % 
+            (outputpath,method,model,cellHealth,errType,mode,imin,imax,lmax,nburn,nsamples),qoi)
     
-    np.save("%s/%s_%s_%s_c_err_%s_%i_%i_lmax_%s_nburn_%i_mpe_sample.npy" % 
-            (outputpath,method,model,cellHealth,mode,imin,imax,lmax,nburn),c_err)
+    np.save("%s/%s_%s_%s_%s_c_err_%s_%i_%i_lmax_%s_nburn_%i_nsamples_%i_mpe_sample.npy" % 
+            (outputpath,method,model,cellHealth,errType,mode,imin,imax,lmax,nburn,nsamples),c_err)

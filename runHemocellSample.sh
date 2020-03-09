@@ -6,13 +6,15 @@
 
 METHOD="TMCMC"
 LMAX=1
-NBURN=0
+NBURN=10
+NSAMPLES=10000
 TREATMENT="0"
 VISC=1
 IMIN=2
-IMAX=10
+IMAX=8
 MODEL_TYPE="external"
-MODEL="GP"
+MODEL="single_GP_isotropic"
+ERRTYPE="no_EL_error"
 
 if [[ $TREATMENT > 0 ]]; then
     CELLHEALTH="treated"
@@ -38,14 +40,14 @@ date
 #cp -r $HOME/IUQ-Project/* $OUTDIR
 #cd $OUTDIR
 
-python3 runHemocellSample.py --method $METHOD --enableInteriorViscosity $VISC --lmax $LMAX --nburn $NBURN --cellHealth $CELLHEALTH --imin $IMIN --imax $IMAX --model_type ${MODEL_TYPE} --model ${MODEL}
+python3 runHemocellSample.py --method $METHOD --enableInteriorViscosity $VISC --lmax $LMAX --nburn $NBURN --nsamples $NSAMPLES  --cellHealth $CELLHEALTH --imin $IMIN --imax $IMAX --model_type ${MODEL_TYPE} --model ${MODEL} --errType $ERRTYPE
 
-#cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
-#cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample.npy $HOME/results
+#cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_${ERRTYPE}_qoi_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_nsamples_${NSAMPLES}_mpe_sample.npy $HOME/results
+#cp  $OUTDIR/${METHOD}_${MODEL}_${CELLHEALTH}_${ERRTYPE}_c_err_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_nsamples_${NSAMPLES}_mpe_sample.npy $HOME/results
 
-#cp -r $OUTDIR/sample_output $HOME/results/${METHOD}_${MODEL}_${CELLHEALTH}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample
+#cp -r $OUTDIR/sample_output $HOME/results/${METHOD}_${MODEL}_${CELLHEALTH}_${ERRTYPE}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_nsamples_${NSAMPLES}_mpe_sample
 
-mv ./sample_output $HOME/master_project/results/${METHOD}_${MODEL}_${CELLHEALTH}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_mpe_sample
+mv ./sample_output $HOME/master_project/results/${METHOD}_${MODEL}_${CELLHEALTH}_${ERRTYPE}_${TYPE}_${IMIN}_${IMAX}_lmax_${LMAX}_nburn_${NBURN}_nsamples_${NSAMPLES}_mpe_sample
 
 echo "Ending script"
 date

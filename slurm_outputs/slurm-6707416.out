@@ -1,0 +1,95 @@
+Starting script
+Thu Aug 15 15:21:02 CEST 2019
+Output directory: /scratch-shared/hemocell_sample.sy1NB
+Shear stress #0:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [2:27:38<00:00, 8858.89s/it]
+Shear stress: 0.3
+Shear rate: 266.0753880266075
+
+real	147m43.644s
+user	147m38.801s
+sys	0m1.622s
+Shear stress #1:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [1:41:50<00:00, 6110.14s/it]
+Shear stress: 0.44
+Shear rate: 390.2439024390244
+
+real	101m54.870s
+user	101m49.506s
+sys	0m1.103s
+Shear stress #2:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [1:10:59<00:00, 4259.28s/it]
+Shear stress: 0.64
+Shear rate: 567.6274944567627
+
+real	71m4.009s
+user	70m58.497s
+sys	0m1.578s
+Shear stress #3:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [49:35<00:00, 2975.48s/it]
+Shear stress: 0.93
+Shear rate: 824.8337028824834
+
+real	49m40.252s
+user	49m34.947s
+sys	0m1.205s
+Shear stress #4:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [34:45<00:00, 2085.16s/it]
+Shear stress: 1.36
+Shear rate: 1206.2084257206209
+
+real	34m49.908s
+user	34m44.658s
+sys	0m0.913s
+Shear stress #5:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [24:25<00:00, 1465.24s/it]
+Shear stress: 1.99
+Shear rate: 1764.9667405764967
+
+real	24m30.020s
+user	24m24.683s
+sys	0m0.956s
+Shear stress #6:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [17:03<00:00, 1023.44s/it]
+Shear stress: 2.91
+Shear rate: 2580.931263858093
+
+real	17m8.200s
+user	17m2.663s
+sys	0m0.871s
+Shear stress #7:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [11:49<00:00, 709.67s/it]
+Shear stress: 4.24
+Shear rate: 3760.532150776053
+
+real	11m54.452s
+user	11m48.501s
+sys	0m0.983s
+Shear stress #8:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [08:09<00:00, 489.48s/it]
+Shear stress: 6.19
+Shear rate: 5490.022172949002
+
+real	8m14.296s
+user	8m8.459s
+sys	0m0.786s
+Shear stress #9:
+Evaluating...
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [05:39<00:00, 339.02s/it]
+Shear stress: 9.04
+Shear rate: 8017.738359201773
+
+real	5m43.779s
+user	5m37.820s
+sys	0m0.784s
+Ending script
+Thu Aug 15 17:48:47 CEST 2019
