@@ -2,7 +2,7 @@
 #SBATCH -N 30
 #SBATCH -t 5-00:00:00
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=kevin.devries@student.uva.nl
+#SBATCH --mail-user=devrieskevin@live.nl
 
 N=1000
 LMAX=1
@@ -11,7 +11,7 @@ TREATMENT="0"
 VISC=1
 IMIN=2
 IMAX=8
-NPROCS=23
+NPROCS=24
 MODEL_TYPE="external_cluster"
 ERRTYPE="EL_error"
 
@@ -39,12 +39,12 @@ OUTDIR="$(mktemp -d -p /scratch-shared hemocell_TMCMC.XXXXX)"
 
 echo "Output directory: $OUTDIR"
 
-cp -r $HOME/IUQ-Project/* $OUTDIR
+cp -r $HOME/kevin/IUQ-Project/* $OUTDIR
 cd $OUTDIR
 
-python3 sampleHemocell_TMCMC.py --enableInteriorViscosity $VISC --nsamples $N --lmax $LMAX --nburn $NBURN --treatment $TREATMENT --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} --errtype ${ERRTYPE} &
+python3 -u sampleHemocell_TMCMC.py --enableInteriorViscosity $VISC --nsamples $N --lmax $LMAX --nburn $NBURN --treatment $TREATMENT --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} --errtype ${ERRTYPE} &
 
-sleep 10
+sleep 3
 
 # Lisa
 #node_list="$(python nodelistToTuple.py ${SLURM_JOB_NODELIST})"
@@ -56,7 +56,7 @@ node_list="$(nodeset -e ${SLURM_JOB_NODELIST})"
 for node in ${node_list}; do
     if [[ $node != $SLURMD_NODENAME ]]; then
         echo "ssh to node $node"
-        ssh $node "$HOME/IUQ-Project/clusterClient_job.sh $MAINNODE $OUTDIR" &
+        ssh $node "$HOME/kevin/IUQ-Project/clusterClient_job.sh $MAINNODE $OUTDIR" &
     else
         echo "Job running on $node"
     fi

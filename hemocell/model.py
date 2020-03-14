@@ -19,9 +19,9 @@ def setup(modelpath, params):
     templatepath = "%s/templates" % (os.path.dirname(__file__))
 
     # Build and copy the necessary files
-    buildMaterialXml("%s/RBC_HO_template.xml" % (templatepath), params, dest="RBC_HO.xml")
+    buildMaterialXml("%s/RBC_template.xml" % (templatepath), params, dest="RBC.xml")
     buildConfigXml("%s/config_template.xml" % (templatepath), params, dest="config.xml")
-    shutil.copyfile("%s/RBC_HO.pos" % (templatepath), "./RBC_HO.pos")
+    shutil.copyfile("%s/RBC.pos" % (templatepath), "./RBC.pos")
     #shutil.copyfile("%s/hemocell.sh" % (templatepath),"./hemocell.sh")
 
     #return ["./hemocell.sh"]

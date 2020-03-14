@@ -97,7 +97,7 @@ if __name__ == "__main__":
     data = pd.read_csv("%s/Ekcta_full.csv" % (datapath),sep=";")
 
     if treatment == 0:
-        data = data.loc[data["Treatment"] == 0.5]
+        data = data.loc[data["Treatment"] == 0]
         stress,el,el_err = data.values[imin:imax,[1,2,3]].T
         cellHealth = "healthy"
     elif treatment > 0:
@@ -107,6 +107,9 @@ if __name__ == "__main__":
 
     if errtype == "no_EL_error":
         el_err = np.zeros(el_err.shape)
+
+    # Show EL error as a check
+    print("EL errors:", el_err)
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
@@ -149,13 +152,13 @@ if __name__ == "__main__":
     if enableInteriorViscosity:
         if not checkpointed:
             TMCMC_sampler = TMCMC.TMCMC(problem,lmax=lmax,nburn=nburn,logpath="%s/TMCMC_hemocell_%s_%s_visc_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % 
-                                                                              (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),logstep=2000,nprocs=nprocs)
+                                                                              (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),logstep=2000,nprocs=nprocs,keep_output=False)
         else:
             TMCMC_sampler = TMCMC.load_state("%s/TMCMC_hemocell_%s_%s_visc_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples))
     else:
         if not checkpointed:
             TMCMC_sampler = TMCMC.TMCMC(problem,lmax=lmax,nburn=nburn,logpath="%s/TMCMC_hemocell_%s_%s_normal_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % 
-                                                                              (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),logstep=2000,nprocs=nprocs)
+                                                                              (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples),logstep=2000,nprocs=nprocs,keep_output=False)
         else:
             TMCMC_sampler = TMCMC.load_state("%s/TMCMC_hemocell_%s_%s_normal_%i_%i_lmax_%s_nburn_%i_nsamples_%i_log.pkl" % (outputpath,cellHealth,errtype,imin,imax,lmax,nburn,nsamples))
 

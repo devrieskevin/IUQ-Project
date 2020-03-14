@@ -2,7 +2,7 @@
 Defines paths for running the model in Cartesius
 """
 
-libpath = "/home/annanik/IUQ-Project"
-datapath = "/home/annanik/data"
-modelpath = "/home/annanik/HemoCell/examples/oneCellShear/oneCellShear"
-outputpath = "/home/annanik/results"
+libpath = "/home/czaja2/kevin/IUQ-Project"
+datapath = "/home/czaja2/kevin/data"
+modelpath = "/home/czaja2/kevin/HemoCell/examples/oneCellShear/oneCellShear"
+outputpath = "/home/czaja2/kevin/results"
