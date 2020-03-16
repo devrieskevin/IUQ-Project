@@ -19,15 +19,15 @@ def createBatch(setup,tag,var_dicts,param_dict,path,measure):
 
     return batch
 
-def run_external(problem, samples, nprocs=1, sleep_time=0.2, path="run_output"):
+def run_external(problem, samples, nprocs=1, sleep_time=0.2, path="run_output",keep_output=True):
 
     model_type = problem.get("model_type",None)
 
     if model_type == "external":    
         # Initialize model run scheduler
-        runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
+        runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time,keep_output=keep_output)
     elif model_type == "external_cluster":
-        runscheduler = scheduler.ClusterScheduler(nprocs=nprocs,sleep_time=sleep_time)
+        runscheduler = scheduler.ClusterScheduler(nprocs=nprocs,sleep_time=sleep_time,keep_output=keep_output)
         
         # Initialize the server and listen for connection requests
         runscheduler.server_bind()
@@ -96,13 +96,13 @@ def run_external(problem, samples, nprocs=1, sleep_time=0.2, path="run_output"):
 
     return qoi, c_err
     
-def run_batch(problem, sample, nprocs=1, sleep_time=0.2, path="run_output"):
+def run_batch(problem, sample, nprocs=1, sleep_time=0.2, path="run_output",keep_output=True):
 
     # Get base working directory
     baseDir = os.getcwd()
     
     # Initialize model run scheduler
-    runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time)
+    runscheduler = scheduler.ModelScheduler(nprocs=nprocs, sleep_time=sleep_time,keep_output=keep_output)
     
     setup = problem["setup"]
     measure = problem["measure"]

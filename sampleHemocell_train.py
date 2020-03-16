@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Add arguments
-    parser.add_argument("--n_samples",dest="n_samples",type=int,default=1000)
+    parser.add_argument("--nsamples",dest="nsamples",type=int,default=1000)
     parser.add_argument("--imin",dest="imin",type=int,default=3)
     parser.add_argument("--imax",dest="imax",type=int,default=12)
     parser.add_argument("--enableInteriorViscosity",dest="enableInteriorViscosity",type=int,default=0)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Set design variable argument values
-    n_samples = args.n_samples
+    nsamples = args.nsamples
     imin = args.imin
     imax = args.imax
     enableInteriorViscosity = args.enableInteriorViscosity
@@ -91,27 +91,27 @@ if __name__ == "__main__":
     if enableInteriorViscosity:
         bounds.append([1.0,15.0])
 
-    samples = np.zeros((stress.size*n_samples,len(model_params)))
+    samples = np.zeros((stress.size*nsamples,len(model_params)))
     for n,gamma in enumerate(shearrate):
-        hsamples = lhs(len(model_params)-4,samples=n_samples,criterion="maximin")
+        hsamples = lhs(len(model_params)-4,samples=nsamples,criterion="maximin")
 
         for m,(bmin,bmax) in enumerate(bounds):
             hsamples[:,m] = bmin + (bmax-bmin)*hsamples[:,m]
 
-        samples[n*n_samples:(n+1)*n_samples,:len(model_params)-4] = hsamples
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-4] = gamma
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-3] = tmax[n]
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-2] = tstart[n]
-        samples[n*n_samples:(n+1)*n_samples,len(model_params)-1] = tmeas[n]
+        samples[n*nsamples:(n+1)*nsamples,:len(model_params)-4] = hsamples
+        samples[n*nsamples:(n+1)*nsamples,len(model_params)-4] = gamma
+        samples[n*nsamples:(n+1)*nsamples,len(model_params)-3] = tmax[n]
+        samples[n*nsamples:(n+1)*nsamples,len(model_params)-2] = tstart[n]
+        samples[n*nsamples:(n+1)*nsamples,len(model_params)-1] = tmeas[n]
 
     qoi, c_err = run_external(problem,samples,nprocs=nprocs,path="train_output")
 
     # Write output to files
     if enableInteriorViscosity:
-        np.save("train_hemocell_samples_visc_%i_%i.npy" % (imin,imax),samples)
-        np.save("train_hemocell_qoi_visc_%i_%i.npy" % (imin,imax),qoi)
-        np.save("train_hemocell_c_err_visc_%i_%i.npy" % (imin,imax),c_err)
+        np.save("%s/train_hemocell_samples_visc_%i_%i_nsamples_%i.npy" % (outputpath,imin,imax,nsamples),samples)
+        np.save("%s/train_hemocell_qoi_visc_%i_%i_nsamples_%i.npy" % (outputpath,imin,imax,nsamples),qoi)
+        np.save("%s/train_hemocell_c_err_visc_%i_%i_nsamples_%i.npy" % (outputpath,imin,imax,nsamples),c_err)
     else:
-        np.save("train_hemocell_samples_normal_%i_%i.npy" % (imin,imax),samples)
-        np.save("train_hemocell_qoi_normal_%i_%i.npy" % (imin,imax),qoi)
-        np.save("train_hemocell_c_err_normal_%i_%i.npy" % (imin,imax),c_err)
+        np.save("%s/train_hemocell_samples_normal_%i_%i_nsamples_%i.npy" % (outputpath,imin,imax,nsamples),samples)
+        np.save("%s/train_hemocell_qoi_normal_%i_%i_nsamples_%i.npy" % (outputpath,imin,imax,nsamples),qoi)
+        np.save("%s/train_hemocell_c_err_normal_%i_%i_nsamples_%i.npy" % (outputpath,imin,imax,nsamples),c_err)
