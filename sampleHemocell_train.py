@@ -53,9 +53,9 @@ if __name__ == "__main__":
     design_vars = ["enableInteriorViscosity"]
 
     # Extract data from dataset
-    data = pd.read_csv("%s/Ekcta_100.csv" % (datapath),sep=";")
-    data = data.loc[data["Treatment"] == 0.5]
-    stress,el,el_err = data.values[imin:imax,[1,3,4]].T
+    data = pd.read_csv("%s/Ekcta_full.csv" % (datapath),sep=";")
+    data = data.loc[data["Treatment"] == 0]
+    stress,el,el_err = data.values[imin:imax,[1,2,3]].T
 
     # Get data from config files
     configpath = "%s/hemocell/templates/config_template.xml" % (libpath)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         samples[n*nsamples:(n+1)*nsamples,len(model_params)-2] = tstart[n]
         samples[n*nsamples:(n+1)*nsamples,len(model_params)-1] = tmeas[n]
 
-    qoi, c_err = run_external(problem,samples,nprocs=nprocs,path="train_output")
+    qoi, c_err = run_external(problem,samples,nprocs=nprocs,path="train_output",keep_output=False)
 
     # Write output to files
     if enableInteriorViscosity:

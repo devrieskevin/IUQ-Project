@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH -N 2
-#SBATCH -t 0-00:05:00
+#SBATCH -N 30
+#SBATCH -t 2-00:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=devrieskevin@live.nl
 
-N=100
+N=500
 VISC=1
-IMIN=0
+IMIN=2
 IMAX=10
 NPROCS=24
 MODEL_TYPE="external_cluster"
@@ -31,7 +31,7 @@ echo "Output directory: $OUTDIR"
 cp -r $HOME/kevin/IUQ-Project/* $OUTDIR
 cd $OUTDIR
 
-python3 sampleHemocell_train.py --enableInteriorViscosity $VISC --n_samples $N --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
+python3 -u sampleHemocell_train.py --enableInteriorViscosity $VISC --nsamples $N --imin $IMIN --imax $IMAX --nprocs $NPROCS --model_type ${MODEL_TYPE} &
 
 sleep 3
 
@@ -45,7 +45,7 @@ node_list="$(nodeset -e $SLURM_JOB_NODELIST)"
 for node in ${node_list}; do
     if [[ $node != $SLURMD_NODENAME ]]; then
         echo "ssh to node $node"
-        ssh $node "$HOME/IUQ-Project/clusterClient_job.sh $MAINNODE $OUTDIR" &
+        ssh $node "$HOME/kevin/IUQ-Project/clusterClient_job.sh $MAINNODE $OUTDIR" &
     else
         echo "Job running on $node"
     fi
